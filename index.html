@@ -128,6 +128,17 @@
   .range-line { margin-top: 14px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
   .range-line:empty { display: none; }
 
+  /* 「看詳細」：重點先看，細節點開才顯示 */
+  details.more { margin-top: 14px; }
+  details.more > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); color: var(--primary); font-size: 13px; font-weight: 600; user-select: none; }
+  details.more > summary:hover { background: var(--hover); }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::after { content: "▾"; }
+  details.more[open] > summary::after { content: "▴"; }
+  details.more[open] > summary { margin-bottom: 14px; }
+  .headline { font-size: 15px; line-height: 1.8; margin: 4px 0 12px; }
+  .headline b { font-size: 17px; }
   details.help { margin-top: 12px; font-size: 12px; color: var(--text-muted); }
   details.help summary { cursor: pointer; color: var(--text-secondary); list-style: none; display: inline-flex; align-items: center; gap: 6px; user-select: none; }
   details.help summary::-webkit-details-marker { display: none; }
@@ -305,6 +316,13 @@
     .hotcold { font-size: 14px; }
 
     /* 子分頁：兩排按鈕全部看得到，不用左右滑 */
+    details.more > summary { display: flex; justify-content: center; width: 100%; font-size: 16px; padding: 11px; }
+    .headline { font-size: 17px; }
+    .headline b { font-size: 19px; }
+    /* 手機卡片只留重點欄位，次要的收起來（電腦版表格照常顯示） */
+    table.ledger td[data-label="輪次"], table.ledger td[data-label="拿回"],
+    table.ledger td[data-label="本期"], table.ledger td[data-label="總累計"],
+    #tails td[data-label="期別"], #tails td[data-label="當時開出"], #special td[data-label="期別"] { display: none !important; }
     .subtabs { margin: 0 0 14px; padding: 0; border-bottom: 0; flex-wrap: wrap; gap: 6px; overflow: visible; }
     .subtabs button { flex: 1 1 30%; font-size: 15px; padding: 10px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
     .subtabs button.active { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
@@ -386,6 +404,7 @@
       <div class="card-head"><h2>模擬推演</h2><span class="sub">用過去的開獎紀錄測試下法</span></div>
       <div class="fields">
         <div class="field"><span>尾數</span><div class="ctl"><select id="simTail">
+          <option value="1-9" selected>1～9 尾（不含 0 尾）</option>
           <option value="all">全部 0～9 尾</option>
           <option value="0">0 尾（10 20 30 40）</option>
           <option value="1">1 尾（01 11 21 31 41）</option>
@@ -393,7 +412,7 @@
           <option value="3">3 尾（03 13 23 33 43）</option>
           <option value="4">4 尾（04 14 24 34 44）</option>
           <option value="5">5 尾（05 15 25 35 45）</option>
-          <option value="6" selected>6 尾（06 16 26 36 46）</option>
+          <option value="6">6 尾（06 16 26 36 46）</option>
           <option value="7">7 尾（07 17 27 37 47）</option>
           <option value="8">8 尾（08 18 28 38 48）</option>
           <option value="9">9 尾（09 19 29 39 49）</option></select></div></div>
@@ -452,14 +471,18 @@
       </section>
       <div class="stack">
         <section class="card">
-          <div class="card-head"><h2>特別號統計</h2><span class="sub">點標題可排序</span></div>
+          <div class="card-head"><h2>特別號統計</h2></div>
           <div class="note" id="specialNote"></div>
-          <div class="table-scroll" style="max-height: 460px"><table id="special"></table></div>
+          <div class="headline" id="specialHead"></div>
+          <details class="more"><summary>看詳細：49 個號碼的特別號統計表</summary><div>
+            <div class="table-scroll" style="max-height: 460px"><table id="special"></table></div></div></details>
         </section>
         <section class="card">
-          <div class="card-head"><h2>正碼統計</h2><span class="sub">點標題可排序</span></div>
+          <div class="card-head"><h2>正碼統計</h2></div>
           <div class="note" id="statsNote"></div>
-          <div class="table-scroll" style="max-height: 460px"><table id="stats"></table></div>
+          <div class="headline" id="statsHead"></div>
+          <details class="more"><summary>看詳細：49 個號碼的正碼統計表</summary><div>
+            <div class="table-scroll" style="max-height: 460px"><table id="stats"></table></div></div></details>
         </section>
       </div>
     </div>
@@ -776,6 +799,11 @@ const sortRows = (table, stats) => {
 function renderSpecial() {
   const { stats } = current;
   $('specialNote').textContent = rangeNote();
+  const spTop = [...stats].filter(s => s.sp).sort((a, b) => b.sp - a.sp || a.num - b.num).slice(0, 5);
+  const spLong = [...stats].sort((a, b) => b.spMiss - a.spMiss)[0];
+  $('specialHead').innerHTML =
+    `最常開成特別號：${spTop.length ? spTop.map(s => `${ball(s.num)} ${s.sp} 次`).join('　') : '—'}<br>` +
+    `最久沒開成特別號：${spLong ? `${ball(spLong.num)} 已 ${spLong.spMiss} 期` : '—'}`;
   const rows = sortRows('special', stats).map(s => {
     const inR = inRange(s.spLast);
     return `
@@ -908,10 +936,13 @@ function renderHotCold() {
 
   $('hotcold').innerHTML = `
     <div class="grp">最常開出：${chips(hot, s => s.count + ' 次')}</div>
-    <div class="grp">最少開出：${chips(cold, s => s.count + ' 次')}</div>
     <div class="grp">最久未開：${chips(longMiss, s => s.miss + ' 期')}</div>
-    <div class="grp">特別號最久未開：${chips(spLongMiss, s => s.spMiss + ' 期')}</div>
-    <div class="grp">波色分布：${waveHtml}</div>`;
+    <div style="flex-basis: 100%">${more('看詳細：最少開出、特別號最久未開、波色分布', `
+      <div class="hotcold" style="margin-top: 0">
+        <div class="grp">最少開出：${chips(cold, s => s.count + ' 次')}</div>
+        <div class="grp">特別號最久未開：${chips(spLongMiss, s => s.spMiss + ' 期')}</div>
+        <div class="grp">波色分布：${waveHtml}</div>
+      </div>`)}</div>`;
 }
 
 function renderDraws() {
@@ -934,6 +965,11 @@ function renderDraws() {
 function renderStats() {
   const { stats } = current;
   $('statsNote').textContent = rangeNote() + (state.withSpecial ? '（含特別號）' : '');
+  const mainTop = [...stats].filter(s => s.main).sort((a, b) => b.main - a.main || a.num - b.num).slice(0, 5);
+  const noShow = stats.filter(s => !s.main).length;
+  $('statsHead').innerHTML =
+    `最常開出：${mainTop.length ? mainTop.map(s => `${ball(s.num)} ${s.main} 次`).join('　') : '—'}<br>` +
+    `<span class="wd">這段期間有 ${noShow} 個號碼沒開出過</span>`;
   const rows = sortRows('stats', stats).map(s => `
     <tr class="${s.num === state.highlight ? 'hl' : ''}">
       <td>${ball(s.num)}</td>
@@ -1255,15 +1291,17 @@ function renderAdvice(ev) {
       <td>${signed(q.ifHit)}</td><td>${signed(q.ifMiss)}</td>
       <td>${q.stop ? '<span class="warn">超過停損，停止</span>' : ''}</td></tr>`).join('');
   return `<div class="advice">
-    <h3>下一期（第 ${p.round} 輪第 ${p.roundN} 期）怎麼下才能${goal}？</h3>
-    <div>本輪目前 ${signed(cum)}。下 <b>${m}</b> 支（花 <b class="money">${money(m * k * price)}</b> 元），中了本輪累計 ${signed(cum - m * k * price + m * payout)}；沒中則變成 ${signed(cum - m * k * price)}。</div>
-    ${p.units && p.units !== m ? `<div>你這期下的是 <b>${p.units}</b> 支、花 <b class="money">${money(p.cost)}</b>：中了 ${signed(cum - p.cost + p.units * payout)}；沒中 ${signed(cum - p.cost)}${p.units < m ? `　<span class="warn">支數不足，中了也無法${goal}</span>` : ''}。</div>` : ''}
-    <table><thead><tr><th>下注</th><th>花費</th><th>中了拿回</th><th>中了本輪累計</th><th>沒中本輪累計</th></tr></thead>
-      <tbody>${choices.map(opt).join('')}</tbody></table>
-    <h3 style="margin-top: 14px">如果一直沒開，接下來每期要下多少（照建議下）</h3>
-    <table><thead><tr><th>期數</th><th>預估開獎日</th><th>${bet.settings.target ? `達到 +${money(bet.settings.target)} 需下` : '回本需下'}</th><th>當期花費</th><th>那期中了</th><th>那期又沒中</th><th></th></tr></thead>
-      <tbody>${projRows}</tbody></table>
-    <div class="note" style="margin: 6px 0 0">${datesNote()}</div>
+    <h3>下一期（預估 ${dateCell(projDates[0])}）怎麼下？</h3>
+    <div class="headline">建議下 <b>${m} 支</b>（花 ${money(m * k * price)} 元）<br>
+      中了：本輪 ${signed(cum - m * k * price + m * payout)}　沒中：本輪 ${signed(cum - m * k * price)}</div>
+    ${p.units && p.units !== m ? `<div>你這期填的是 <b>${p.units}</b> 支、花 <b class="money">${money(p.cost)}</b>：中了 ${signed(cum - p.cost + p.units * payout)}；沒中 ${signed(cum - p.cost)}${p.units < m ? `　<span class="warn">支數不足，中了也無法${goal}</span>` : ''}。</div>` : ''}
+    ${more('看詳細：其他支數比較、接下來幾期要下多少', `
+      <table><thead><tr><th>下注</th><th>花費</th><th>中了拿回</th><th>中了本輪累計</th><th>沒中本輪累計</th></tr></thead>
+        <tbody>${choices.map(opt).join('')}</tbody></table>
+      <h3 style="margin-top: 14px">如果一直沒開，接下來每期要下多少（照建議下）</h3>
+      <table><thead><tr><th>期數</th><th>預估開獎日</th><th>${bet.settings.target ? `達到 +${money(bet.settings.target)} 需下` : '回本需下'}</th><th>當期花費</th><th>那期中了</th><th>那期又沒中</th><th></th></tr></thead>
+        <tbody>${projRows}</tbody></table>
+      <div class="note" style="margin: 6px 0 0">${datesNote()}</div>`)}
   </div>`;
 }
 
@@ -1322,30 +1360,37 @@ function renderRound() {
       <div>目前<b>第 ${cur.no} 輪・已追 ${cur.n} 期</b></div>
       <div>本輪累計<b>${signed(cur.cum)}</b></div>
       <div>總輸贏<b>${signed(S.total)}</b></div>
-      <div>${won} / 停損<b>${S.wins} 輪 / ${S.stops} 輪</b></div>
-      <div>停損虧損合計<b>${signed(S.stopLoss)}</b></div>
-      <div>最大單輪虧損<b>${signed(S.worstRound)}</b></div>
-      <div>單期最多下注<b class="money">${money(S.maxCost)}</b></div>
-      <div>總花費 / 總拿回<b class="money">${money(S.totalCost)} / ${money(S.totalBack)}</b></div>
     </div>
-    <div class="actions">
-      <label class="find">每輪目標獲利 <input type="number" id="ledgerTarget" min="0" step="100" value="${target}"> 元
-        <span class="wd">（中了至少賺這麼多，0 = 只要回本）</span></label>
-      ${hasOverrides ? '<button class="btn" data-act="clearOverrides">清除手動支數，全部照建議推演</button>' : ''}
-    </div>
-    <div class="actions">
-      <label class="find"><input type="checkbox" id="autoSuggest" ${bet.autoSuggest ? 'checked' : ''}> 沒填支數的期數，自動照建議支數下注</label>
-      <button class="btn" data-act="archive">結束並存檔</button>
-      <button class="btn" data-act="discard">放棄（不存檔）</button>
-    </div>
-    <div class="table-scroll" style="max-height: 640px"><table>
-      <thead><tr><th>期別</th><th>輪次</th><th>特別號</th><th>${target ? `達到 +${money(target)}<br>需下` : '回本需下'}</th><th>實際下注</th><th>花費</th><th>拿回</th><th>本期</th><th>本輪累計</th><th>總累計</th><th>這期若中</th></tr></thead>
-      <tbody>${body}</tbody></table></div>
-    ${renderAdvice(ev)}`;
+    ${renderAdvice(ev)}
+    ${more('看詳細：每一期的下注紀錄（可修改支數）', `
+      <div class="actions">
+        <label class="find"><input type="checkbox" id="autoSuggest" ${bet.autoSuggest ? 'checked' : ''}> 沒填支數的期數，自動照建議支數下注</label>
+        ${hasOverrides ? '<button class="btn" data-act="clearOverrides">清除手動支數，全部照建議推演</button>' : ''}
+      </div>
+      <div class="table-scroll" style="max-height: 640px"><table class="ledger">
+        <thead><tr><th>期別</th><th>輪次</th><th>特別號</th><th>${target ? `達到 +${money(target)}<br>需下` : '回本需下'}</th><th>實際下注</th><th>花費</th><th>拿回</th><th>本期</th><th>本輪累計</th><th>總累計</th><th>這期若中</th></tr></thead>
+        <tbody>${body}</tbody></table></div>`)}
+    ${more('看詳細：更多統計與設定', `
+      <div class="kpis">
+        <div>${won} / 停損<b>${S.wins} 輪 / ${S.stops} 輪</b></div>
+        <div>停損虧損合計<b>${signed(S.stopLoss)}</b></div>
+        <div>最大單輪虧損<b>${signed(S.worstRound)}</b></div>
+        <div>單期最多下注<b class="money">${money(S.maxCost)}</b></div>
+        <div>總花費 / 總拿回<b class="money">${money(S.totalCost)} / ${money(S.totalBack)}</b></div>
+      </div>
+      <div class="actions">
+        <label class="find">每輪目標獲利 <input type="number" id="ledgerTarget" min="0" step="100" value="${target}"> 元
+          <span class="wd">（中了至少賺這麼多，0 = 只要回本）</span></label>
+      </div>
+      <div class="actions">
+        <button class="btn" data-act="archive">結束並存檔</button>
+        <button class="btn" data-act="discard">放棄（不存檔）</button>
+      </div>`)}`;
 }
 
 function renderArchive() {
-  if (!bet.archive.length) { $('archive').innerHTML = '<div class="note" style="margin:0">還沒有存檔的紀錄。</div>'; return; }
+  $('archive').closest('section').hidden = !bet.archive.length;
+  if (!bet.archive.length) { $('archive').innerHTML = ''; return; }
   $('archive').innerHTML = `<div class="table-scroll" style="max-height: 360px"><table>
     <thead><tr><th>尾數</th><th>期間</th><th>期數</th><th>回本 / 停損</th><th>停損虧損</th><th>最大單輪虧損</th><th>單期最多</th><th>總花費</th><th>總輸贏</th><th></th></tr></thead>
     <tbody>${bet.archive.map((a, i) => `<tr>
@@ -1456,7 +1501,7 @@ $('viewBet').addEventListener('click', async e => {
 });
 
 // ---------- 模擬推演 ----------
-const sim = { result: null, sel: null, tab: 'overview', rank: { key: 'roi', dir: -1 }, rule: { mode: 'max', val: 50 } };
+const sim = { result: null, sel: null, tab: 'overview', rank: { key: 'roi', dir: -1 }, rule: { mode: 'max', val: 75 } };
 const pct = v => v === null ? '—' : (v * 100).toFixed(1) + '%';
 const signedPct = v => `<span class="money ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%</span>`;
 
@@ -1586,7 +1631,7 @@ function renderRanking(R) {
   const allCost = sum(m => m.totalCost), allBack = sum(m => m.totalBack), allNet = sum(m => m.total);
   const totalRow = M.length < 2 ? '' : `<tr class="sep"><td></td><td><b>合計</b></td>
       <td class="money"><b>${money(allCost)}</b></td><td class="money"><b>${money(allBack)}</b></td><td><b>${signed(allNet)}</b></td>
-      <td><b>${allCost ? signedPct(allNet / allCost) : '—'}</b></td><td colspan="4"><span class="wd">10 組同時照這個方式下注的合計</span></td></tr>`;
+      <td><b>${allCost ? signedPct(allNet / allCost) : '—'}</b></td><td colspan="4"><span class="wd">${M.length} 組同時照這個方式下注的合計</span></td></tr>`;
   return `
     <h2>每一組的總投資與獲利（${R.n} 期推演：${R.from.date} ～ ${R.to.date}）</h2>
     <div class="kpis">
@@ -1711,7 +1756,6 @@ function renderTiming(R) {
       <td>${c.res.rounds.length}</td><td>${done ? `${S.wins} / ${S.stops}` : '—'}</td>
       <td>${S.totalCost ? signedPct(S.total / S.totalCost) : '—'}</td><td>${signed(S.total)}</td><td>${signed(S.maxDD)}</td></tr>`;
   }).join('');
-  const readyList = cands.filter(c => c.ready).map(c => `${c.t.tail} 尾（已 ${c.cur} 期）`).join('、');
 
   return `
     <h2>進場時機篩選</h2>
@@ -1720,13 +1764,7 @@ function renderTiming(R) {
       <thead><tr><th>進場方式</th><th>進場輪數</th><th>達標 / 停損</th><th>總花費</th><th>總輸贏</th><th>報酬率</th><th>最大單輪虧損</th><th>單期最多下注</th><th>最大資金回撤</th></tr></thead>
       <tbody>${levelRows}</tbody></table></div>
 
-    <h3 style="font-size: 15px; margin: 16px 0 6px">② 目前可以進場的尾數</h3>
-    <div class="form-row">
-      <label>進場門檻 = <select id="ruleMode">
-        ${Object.entries(RULE_LABEL).map(([k, v]) => `<option value="${k}" ${rule.mode === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-      <label>X = <input id="ruleVal" type="number" min="0" step="${rule.mode === 'avg' ? 0.5 : rule.mode === 'max' ? 10 : 1}" value="${rule.val}"></label>
-    </div>
-    <div style="margin: 8px 0; font-size: 14px">${readyList ? `目前已達門檻：<b>${readyList}</b>` : '目前沒有尾數達到門檻。'}</div>
+    <h3 style="font-size: 15px; margin: 16px 0 6px">② 照目前門檻（${ruleText(rule)}）過去進場的回測</h3>
     <div class="table-scroll"><table>
       <thead><tr><th rowspan="2">尾數</th><th rowspan="2">最後開出日</th><th rowspan="2">目前未開</th><th rowspan="2">歷史最長</th><th rowspan="2">平均間隔</th>
         <th rowspan="2">進場門檻</th><th rowspan="2">狀態</th><th colspan="5">過去照這個門檻進場的回測</th></tr>
@@ -1792,7 +1830,8 @@ async function runSim() {
   const entryMiss = Math.max(0, Math.floor(Number($('simEntry').value) || 0));
   const pick = $('simTail').value;
   const R = { n: draws.length, from: draws[0], to: draws[draws.length - 1], strategy, fixed, entryMiss, draws, prior, tails: [] };
-  for (const t of pick === 'all' ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : [Number(pick)]) {
+  const tailList = pick === 'all' ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : pick === '1-9' ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [Number(pick)];
+  for (const t of tailList) {
     R.tails.push(Object.assign({ tail: t, drought: droughtStats(draws, prior, t) }, runTailWith(R, t, entryMiss)));
   }
   sim.result = R;
@@ -1806,6 +1845,94 @@ async function runSim() {
 }
 
 const help = (html, label = '說明') => `<details class="help"><summary>${label}</summary><div>${html}</div></details>`;
+
+// 「看詳細」區塊：預設收起，打開過的會記住（畫面重畫後還是打開的）
+const openMore = new Set();
+const more = (label, html) => `<details class="more" data-key="${label}"${openMore.has(label) ? ' open' : ''}><summary>${label}</summary><div>${html}</div></details>`;
+document.addEventListener('toggle', e => {
+  const d = e.target;
+  if (!d.matches || !d.matches('details.more')) return;
+  if (d.open) openMore.add(d.dataset.key); else openMore.delete(d.dataset.key);
+}, true);
+
+const ruleText = rule => rule.mode === 'max' ? `歷史最長未開的 ${rule.val}%` : rule.mode === 'avg' ? `平均間隔 × ${rule.val}` : `連續未開滿 ${rule.val} 期`;
+const readyTails = R => R.tails.filter(t => t.drought.current >= ruleThreshold(t, sim.rule));
+const simpleTable = (heads, rows) => `<div class="table-scroll"><table><thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+
+// ---- 每個分頁的重點版（完整內容放在「看詳細」裡） ----
+function simpleOverview(R) {
+  const sum = f => R.tails.reduce((s, t) => s + f(t), 0);
+  const cost = sum(t => t.S.totalCost), net = sum(t => t.S.total);
+  const ready = readyTails(R);
+  const rows = R.tails.map(t => {
+    const open = t.rounds.find(x => x.result === 'open');
+    const now = open ? `追了 ${open.n} 期（${signed(open.net)}）` : ready.includes(t) ? '<b>✅ 可以進場</b>' : '<span class="wd">—</span>';
+    return `<tr class="click${sim.sel === t.tail ? ' hl' : ''}" data-tail="${t.tail}"><td><b>${t.tail} 尾</b></td><td>${now}</td>
+      <td class="money">${money(t.S.totalCost)}</td><td>${signed(t.S.total)}</td></tr>`;
+  }).join('');
+  return `
+    <div class="kpis">
+      <div>淨獲利<b>${signed(net)}</b></div>
+      <div>報酬率<b>${cost ? signedPct(net / cost) : '—'}</b></div>
+      <div>總投資<b class="money">${money(cost)}</b></div>
+      <div>目前可進場<b>${ready.length ? ready.map(t => `${t.tail} 尾`).join('、') : '無'}</b></div>
+    </div>
+    ${simpleTable(['尾數', '目前', '總投資', '淨獲利'], rows)}
+    <div class="note" style="margin-top: 8px">點任一尾數，看它的明細和接下來的推演。</div>`;
+}
+
+function simpleDrought(R) {
+  const rows = [...R.tails].sort((a, b) => b.drought.current - a.drought.current).map(t => {
+    const D = t.drought;
+    return `<tr class="click" data-tail="${t.tail}"><td><b>${t.tail} 尾</b></td><td><b>${D.current} 期</b></td>
+      <td>${D.last ? `${D.last.date}（${weekday(D.last.date)}）` : '—'}</td><td>${D.longest.len} 期</td>
+      <td>${D.avgGap ? D.avgGap.toFixed(1) + ' 期' : '—'}</td></tr>`;
+  }).join('');
+  return `<div class="headline">依「目前已幾期沒開」排序，最上面的最久沒開。</div>
+    ${simpleTable(['尾數', '目前已幾期未開', '最後開出日', '歷史最長未開', '平均幾期開一次'], rows)}`;
+}
+
+function simpleTiming(R) {
+  const rule = sim.rule;
+  const cands = R.tails.map(t => {
+    const thr = ruleThreshold(t, rule);
+    return { t, thr, cur: t.drought.current, ready: t.drought.current >= thr };
+  }).sort((a, b) => (b.ready - a.ready) || ((b.cur - b.thr) - (a.cur - a.thr)));
+  const ready = cands.filter(c => c.ready);
+  const rows = cands.map(c => `<tr class="click${c.ready ? ' hl' : ''}" data-tail="${c.t.tail}"><td><b>${c.t.tail} 尾</b></td>
+      <td><b>${c.cur} 期</b></td><td>${c.thr} 期</td>
+      <td>${c.ready ? '<b>✅ 可以進場</b>' : `還差 ${c.thr - c.cur} 期`}</td></tr>`).join('');
+  return `
+    <div class="form-row" style="margin-bottom: 12px">
+      <label>進場門檻 = <select id="ruleMode">
+        ${Object.entries(RULE_LABEL).map(([k, v]) => `<option value="${k}" ${rule.mode === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label>X = <input id="ruleVal" type="number" min="0" step="${rule.mode === 'avg' ? 0.5 : rule.mode === 'max' ? 5 : 1}" value="${rule.val}"></label>
+    </div>
+    <div class="headline">${ready.length
+      ? `目前可以進場：<b>${ready.map(c => `${c.t.tail} 尾`).join('、')}</b>`
+      : '目前沒有尾數達到進場門檻。'}<br><span class="wd">門檻：${ruleText(rule)}</span></div>
+    ${simpleTable(['尾數', '目前未開', '進場門檻', '狀態'], rows)}`;
+}
+
+function simpleRanking(R) {
+  const M = simMetrics(R).sort((a, b) => b.roi - a.roi);
+  const rows = M.map((m, i) => `<tr class="click${i === 0 ? ' hl' : ''}" data-tail="${m.tail}"><td>${i + 1}</td><td><b>${m.tail} 尾</b></td>
+      <td class="money">${money(m.totalCost)}</td><td>${signed(m.total)}</td><td><b>${signedPct(m.roi)}</b></td></tr>`).join('');
+  return `<div class="headline">依報酬率排名（淨獲利 ÷ 總投資）。</div>
+    ${simpleTable(['排名', '尾數', '總投資', '淨獲利', '報酬率'], rows)}`;
+}
+
+function simpleRoundCosts(R) {
+  const rows = R.tails.map(t => {
+    const won = t.rounds.filter(r => r.result === 'win');
+    const avg = won.length ? won.reduce((s, r) => s + r.cost, 0) / won.length : null;
+    const max = won.length ? Math.max(...won.map(r => r.cost)) : null;
+    return `<tr class="click" data-tail="${t.tail}"><td><b>${t.tail} 尾</b></td><td>${won.length} 次</td>
+      <td class="money">${avg === null ? '—' : money(avg)}</td><td class="money">${max === null ? '—' : money(max)}</td><td>${signed(t.S.total)}</td></tr>`;
+  }).join('');
+  return `<div class="headline">每次「從開始下注到中獎」平均要投入多少，最高要準備多少。</div>
+    ${simpleTable(['尾數', '中獎次數', '平均每輪投入', '最高單輪投入', '總淨獲利'], rows)}`;
+}
 
 const SIM_TABS = [['overview', '總覽'], ['drought', '遺漏分析'], ['timing', '進場時機'], ['invest', '投資與獲利'], ['rounds', '每輪成本'], ['detail', '尾數明細']];
 
@@ -1826,9 +1953,13 @@ function renderSim() {
   const bar = SIM_TABS.map(([k, label]) => `<button data-simtab="${k}" class="${k === sim.tab ? 'active' : ''}">${
     k === 'detail' && sim.sel !== null ? `${sim.sel} 尾明細` : label}</button>`).join('');
   const body = {
-    overview: renderOverview, drought: renderDrought, timing: renderTiming, invest: renderRanking, rounds: renderRoundCosts,
+    overview: () => simpleOverview(R) + more('看詳細：更多數字與完整表格', renderOverview(R)),
+    drought: () => simpleDrought(R) + more('看詳細：完整遺漏分析', renderDrought(R)),
+    timing: () => simpleTiming(R) + more('看詳細：等幾期進場比較好（回測比較）', renderTiming(R)),
+    invest: () => simpleRanking(R) + more('看詳細：完整投資與獲利表', renderRanking(R)),
+    rounds: () => simpleRoundCosts(R) + more('看詳細：完整每輪成本', renderRoundCosts(R)),
     detail: () => '<div id="simDetailPane"></div>',
-  }[sim.tab](R);
+  }[sim.tab]();
   $('simResult').hidden = false;
   $('simResult').innerHTML = `
     <div class="card-head"><h2>推演結果</h2><span class="sub">${R.from.date} ～ ${R.to.date}・共 ${R.n} 期・${simHow(R)}</span></div>
@@ -1910,21 +2041,23 @@ function renderSimDetail() {
       <td>中了本輪 ${signed(q.win)}</td><td>${pct(q.pAt)}</td><td>${pct(q.pBy)}</td></tr>`).join('');
   const how = `${bet.settings.startDraws ? `每輪前 ${bet.settings.startDraws} 期各下 ${bet.settings.startUnits} 支，之後` : ''}以自動算支數${bet.settings.target ? `、中了至少賺 ${money(bet.settings.target)}` : '、剛好回本'}計算`;
   const limit = plan.capped ? '（沒設停損，這裡假設最多再追 30 期）' : '（依停損設定）';
+  const first = plan.steps[0];
   const planBox = `
     <div class="advice">
       <h3>${open
-        ? `${t.tail} 尾：本輪從 ${open.start} 進場，已追 ${open.n} 期，本輪目前 ${signed(open.net)}；接下來的推演`
-        : `如果從下一期進場（${t.tail} 尾目前已連續 ${t.S.endStreak} 期沒開）`}</h3>
-      ${plan.steps.length ? `
-      <div>${how}，接下來最多再追 ${plan.steps.length} 期${limit}：</div>
-      <div>・這段期間內開出（${bet.settings.target ? '達標' : '回本'}）的機率 <b>${pct(1 - plan.pFail)}</b>；一直沒開的機率 <b>${pct(plan.pFail)}</b>，那時本輪會是 ${signed(plan.finalCum)}</div>
-      <div>・接下來這些下注，平均下來的期望值是 <b>${signed(plan.ev)}</b> 元（把所有可能結果依機率加權平均；已經花掉的錢不算在內）</div>`
+        ? `本輪從 ${open.start} 進場，已追 ${open.n} 期，本輪目前 ${signed(open.net)}`
+        : `目前已連續 ${t.S.endStreak} 期沒開`}</h3>
+      ${first ? `
+      <div class="headline">下一期（預估 ${dateCell(planDates[0])}）建議下 <b>${first.units} 支</b>（花 ${money(first.cost)}），中了本輪 ${signed(first.win)}</div>
+      <div>接下來最多再追 ${plan.steps.length} 期，這段期間內開出的機率 <b>${pct(1 - plan.pFail)}</b>；如果一直沒開，本輪會累計到 ${signed(plan.finalCum)}。</div>`
       : `<div><span class="warn">已達停損條件，不再往下追。</span></div>`}
-      <div class="note" style="margin: 4px 0 0">機率不會因為已經 ${t.S.endStreak} 期沒開而提高，每一期都是 ${pct(plan.p)}；機率欄是從現在起算。</div>
-      <div class="table-scroll" style="max-height: 420px; margin-top: 8px"><table>
-        <thead><tr><th>期數</th><th>開獎日</th><th>要下</th><th>當期花費</th><th>本輪累計投入</th><th>結果 / 這期中了</th><th>剛好這期開出的機率</th><th>到這期為止開出的機率</th></tr></thead>
-        <tbody>${pastRows}${futureRows}</tbody></table></div>
-      <div class="note" style="margin: 6px 0 0">「已開獎」是實際開獎日期與結果。${datesNote()}</div>
+      ${more('看詳細：逐期推演表與機率', `
+        <div>${how}${limit}。接下來這些下注的期望值是 <b>${signed(plan.ev)}</b> 元（依機率加權平均，已花掉的錢不算在內）。</div>
+        <div class="note" style="margin: 4px 0 8px">機率不會因為已經 ${t.S.endStreak} 期沒開而提高，每一期都是 ${pct(plan.p)}；機率欄是從現在起算。</div>
+        <div class="table-scroll" style="max-height: 420px"><table>
+          <thead><tr><th>期數</th><th>開獎日</th><th>要下</th><th>當期花費</th><th>本輪累計投入</th><th>結果 / 這期中了</th><th>剛好這期開出的機率</th><th>到這期為止開出的機率</th></tr></thead>
+          <tbody>${pastRows}${futureRows}</tbody></table></div>
+        <div class="note" style="margin: 6px 0 0">「已開獎」是實際開獎日期與結果。${datesNote()}</div>`)}
     </div>`;
   const rounds = [...t.rounds].reverse().map(x => `<tr>
       <td>第 ${x.no} 輪</td><td>${x.start}</td><td>${x.end || '（進行中）'}</td><td>${x.n}</td>
@@ -1935,18 +2068,21 @@ function renderSimDetail() {
     <div class="kpis">
       <div>總輸贏<b>${signed(t.S.total)}</b></div>
       <div>${bet.settings.target ? '達標' : '回本'} / 停損<b>${t.S.wins} 輪 / ${t.S.stops} 輪</b></div>
-      <div>停損虧損合計<b>${signed(t.S.stopLoss)}</b></div>
-      <div>最大單輪虧損<b>${signed(t.S.worstRound)}</b></div>
-      <div>最大資金回撤<b>${signed(t.S.maxDD)}</b></div>
       <div>單期最多下注<b class="money">${money(t.S.maxCost)}</b></div>
     </div>
     ${planBox}
     <h3 style="font-size: 14px; margin: 16px 0 6px">推演期間的總累計輸贏走勢</h3>
     <div class="eq-chart" id="eqChart"></div>
     <div class="actions"><button class="btn" id="simToLedger">把這個尾數放到「虛擬下注」逐期查看</button></div>
-    <div class="table-scroll" style="max-height: 420px"><table>
-      <thead><tr><th>輪次</th><th>開始</th><th>結束</th><th>追了幾期</th><th>結果</th><th>單期最多下注</th><th>本輪最大虧損</th><th>本輪輸贏</th></tr></thead>
-      <tbody>${rounds}</tbody></table></div>`;
+    ${more('看詳細：每一輪紀錄與更多數字', `
+      <div class="kpis">
+        <div>停損虧損合計<b>${signed(t.S.stopLoss)}</b></div>
+        <div>最大單輪虧損<b>${signed(t.S.worstRound)}</b></div>
+        <div>最大資金回撤<b>${signed(t.S.maxDD)}</b></div>
+      </div>
+      <div class="table-scroll" style="max-height: 420px"><table>
+        <thead><tr><th>輪次</th><th>開始</th><th>結束</th><th>追了幾期</th><th>結果</th><th>單期最多下注</th><th>本輪最大虧損</th><th>本輪輸贏</th></tr></thead>
+        <tbody>${rounds}</tbody></table></div>`)}`;
   drawEquity($('eqChart'), pts);
 }
 
@@ -2018,7 +2154,7 @@ $('simTarget').addEventListener('change', e => {
 $('simResult').addEventListener('change', e => {
   if (e.target.id === 'ruleMode') {
     const mode = e.target.value;
-    sim.rule = { mode, val: { max: 50, avg: 2, fixed: 15 }[mode] };
+    sim.rule = { mode, val: { max: 75, avg: 2, fixed: 15 }[mode] };
   } else if (e.target.id === 'ruleVal') {
     sim.rule.val = Math.max(0, Number(e.target.value) || 0);
   } else return;
@@ -2171,13 +2307,13 @@ $('sizeBtn').addEventListener('click', () => {
 });
 try { applySize(localStorage.getItem('m6:size') || 'm'); } catch { applySize('m'); }
 
-// 下注設定：手機上預設收合，只顯示一行摘要
+// 下注設定：預設收合，只顯示一行摘要，要改再按「展開」
 function setSettingsCollapsed(c) {
   $('settingsCard').classList.toggle('collapsed', c);
-  $('setToggle').textContent = c ? '展開' : '收合';
+  $('setToggle').textContent = c ? '展開修改' : '收合';
 }
 $('setToggle').addEventListener('click', () => setSettingsCollapsed(!$('settingsCard').classList.contains('collapsed')));
-setSettingsCollapsed(window.matchMedia('(max-width: 760px)').matches);
+setSettingsCollapsed(true);
 
 // 放到網站上（https）時註冊 Service Worker，就能「加到主畫面」當 App 用；直接開檔案時略過
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
