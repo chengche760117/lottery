@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="六合彩分析">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>香港六合彩 分析</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --page:           #f4f5f7;
+    --surface-1:      #ffffff;
+    --surface-2:      #f8f9fb;
+    --border:         #e3e5e9;
+    --grid:           #eceef1;
+    --hover:          #f4f6f9;
+    --text-primary:   #111418;
+    --text-secondary: #374151;
+    --text-muted:     #667080;
+    --series-1:       #2a78d6;
+    --primary:        #2a78d6;
+    --primary-fg:     #ffffff;
+    --accent:         #eb6834;
+    --row-hl:         #fdf1ea;
+    --btn-active-bg:  #111418;
+    --btn-active-fg:  #ffffff;
+    --wave-red:       #d0393b;
+    --wave-blue:      #1f63c6;
+    --wave-green:     #1b8540;
+  }
+  @media (prefers-color-scheme: dark) {
+    .viz-root {
+      color-scheme: dark;
+      --page:           #0f1012;
+      --surface-1:      #17181b;
+      --surface-2:      #1d1f23;
+      --border:         #2c2f35;
+      --grid:           #25282d;
+      --hover:          #202328;
+      --text-primary:   #f3f4f6;
+      --text-secondary: #d1d5db;
+      --text-muted:     #a0a6b0;
+      --series-1:       #3987e5;
+      --primary:        #3987e5;
+      --primary-fg:     #ffffff;
+      --accent:         #d95926;
+      --row-hl:         #3a2419;
+      --btn-active-bg:  #f3f4f6;
+      --btn-active-fg:  #111418;
+      --wave-red:       #d0393b;
+      --wave-blue:      #2a6fd4;
+      --wave-green:     #1b8540;
+    }
+  }
+
+  /* ---------- base ---------- */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { font-family: "Microsoft JhengHei UI", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+  .viz-root { background: var(--page); color: var(--text-primary); min-height: 100vh; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 24px 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  [hidden] { display: none !important; }
+  .stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* Grid/flex children may shrink below their content, so wide tables scroll inside their card instead of widening the page. */
+  .wrap > *, .stack > *, .grid2 > * { min-width: 0; }
+  html, body { overflow-x: hidden; }
+  h1, h2, h3 { margin: 0; }
+  h3 { font-size: 14px; font-weight: 600; }
+  .wd { color: var(--text-muted); font-size: 12px; font-weight: normal; }
+  .note { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; }
+  .money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pos { color: var(--wave-green); font-weight: 600; }
+  .neg { color: var(--wave-red); font-weight: 600; }
+  .warn { color: var(--accent); font-size: 12px; font-weight: 600; }
+  .empty { padding: 36px 12px; text-align: center; color: var(--text-muted); }
+  .loading { color: var(--text-muted); padding: 20px 0; text-align: center; }
+
+  /* ---------- app bar ---------- */
+  .appbar { position: sticky; top: 0; z-index: 20; background: var(--surface-1); border-bottom: 1px solid var(--border); }
+  .appbar-inner { max-width: 1240px; margin: 0 auto; padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; white-space: nowrap; }
+  .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: var(--wave-red); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  .nav { display: flex; align-self: stretch; }
+  .nav button { border: 0; background: none; padding: 0 16px; color: var(--text-secondary); font-weight: 500; border-bottom: 2px solid transparent; }
+  .nav button:hover { color: var(--text-primary); }
+  .nav button.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--primary); }
+  .status { margin-left: auto; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+  .status.error { color: var(--accent); font-weight: 600; }
+
+  /* ---------- controls ---------- */
+  button { font: inherit; cursor: pointer; }
+  .btn { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 7px; padding: 6px 14px; font-size: 13px; }
+  .btn:hover { background: var(--hover); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; padding: 7px 20px; }
+  .btn-primary:hover { background: var(--primary); filter: brightness(1.08); }
+  input[type=number], input[type=date], select {
+    font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface-1); color: var(--text-primary); }
+  input[type=number]:focus, input[type=date]:focus, select:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: var(--primary); }
+  input[type=checkbox], input[type=radio] { accent-color: var(--primary); }
+
+  .seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+  .seg button { border: 0; background: transparent; color: var(--text-secondary); padding: 5px 14px; border-radius: 6px; font-size: 13px; }
+  .seg button.active { background: var(--surface-1); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .find { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+  .find input[type=number] { width: 84px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+  .summary { margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+  .summary b { color: var(--text-primary); }
+  .form-row { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; color: var(--text-secondary); font-size: 13px; }
+  .form-row input[type=number] { width: 96px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0; }
+
+  /* settings-style field grid */
+  .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px 18px; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .field > span { font-size: 12px; color: var(--text-muted); }
+  .field .ctl { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 13px; }
+  .field .ctl input[type=number], .field .ctl input[type=date], .field .ctl select { flex: 1; min-width: 0; width: 100%; }
+  .field .ctl label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .range-line { margin-top: 14px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text-secondary); }
+  .range-line:empty { display: none; }
+
+  details.help { margin-top: 12px; font-size: 12px; color: var(--text-muted); }
+  details.help summary { cursor: pointer; color: var(--text-secondary); list-style: none; display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+  details.help summary::-webkit-details-marker { display: none; }
+  details.help summary::before { content: "ⓘ"; color: var(--text-muted); }
+  details.help[open] summary { margin-bottom: 8px; }
+  details.help > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; line-height: 1.75; }
+
+  /* ---------- cards ---------- */
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .card > h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+  .card-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 14px; }
+  .card-head h2 { font-size: 16px; font-weight: 600; }
+  .card-head .sub { font-size: 12px; color: var(--text-muted); }
+  .pane h2 { font-size: 15px; font-weight: 600; margin: 2px 0 12px; }
+  .pane h3 { margin: 18px 0 8px; }
+  .subtabs { display: flex; gap: 2px; margin: 0 -20px 18px; padding: 0 12px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .subtabs button { border: 0; background: none; padding: 10px 14px; color: var(--text-secondary); border-bottom: 2px solid transparent; white-space: nowrap; font-weight: 500; }
+  .subtabs button:hover { color: var(--text-primary); }
+  .subtabs button.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--primary); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .kpis > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text-muted); }
+  .kpis b { display: block; margin-top: 4px; font-size: 18px; font-weight: 600; line-height: 1.35; color: var(--text-primary); word-break: keep-all; }
+  .advice { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 16px; line-height: 1.75; }
+  .advice h3 { margin: 0 0 8px; }
+  .advice table { margin-top: 8px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; }
+
+  /* latest draw */
+  .latest { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 14px 20px; }
+  .latest .meta { display: grid; gap: 2px; }
+  .latest .label { font-size: 12px; color: var(--text-muted); }
+  .latest .date { font-size: 18px; font-weight: 700; }
+  .latest .balls .ball { width: 42px; height: 42px; font-size: 18px; }
+  .latest .balls .plus { font-size: 20px; }
+  .latest .next { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+  /* balls wear the official 波色 (red / blue / green wave) */
+  .ball { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+          color: #ffffff; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; user-select: none; }
+  .ball.red   { background: var(--wave-red); }
+  .ball.blue  { background: var(--wave-blue); }
+  .ball.green { background: var(--wave-green); }
+  .ball.hl { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .balls { display: inline-flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .plus { color: var(--text-muted); font-weight: 700; margin: 0 2px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-secondary); margin-left: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: minmax(0, 1fr); } .appbar-inner { gap: 12px; } }
+
+  /* ---------- tables ---------- */
+  .table-scroll { max-height: 620px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); color: var(--text-muted); font-weight: 600; font-size: 12px; }
+  thead tr + tr th { position: static; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--hover); }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: var(--text-primary); }
+  tr.hl td, tr.hl:hover td { background: var(--row-hl); }
+  tr.pending td { background: var(--row-hl); }
+  tr.past td { color: var(--text-secondary); background: var(--surface-2); }
+  tr.sep td { background: var(--surface-2); color: var(--text-secondary); font-size: 12px; padding: 7px 12px; }
+  tr.click { cursor: pointer; }
+  td.muted { color: var(--text-muted); }
+  #draws td { white-space: nowrap; }
+  #draws .balls { flex-wrap: nowrap; }
+
+  /* 虛擬下注 */
+  .tail-pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+  .tail-pick button { border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); border-radius: 8px; padding: 6px 14px; text-align: left; line-height: 1.4; }
+  .tail-pick button:hover { background: var(--hover); }
+  .tail-pick button.active { background: var(--btn-active-bg); color: var(--btn-active-fg); border-color: var(--btn-active-bg); }
+  .tail-pick small { display: block; font-size: 11px; opacity: .75; }
+  .unit-in { width: 64px; font: inherit; font-size: 14px; padding: 4px 6px; text-align: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); color: var(--text-primary); }
+
+  /* charts */
+  .chart svg, .eq-chart svg { width: 100%; height: auto; display: block; }
+  .chart .bar { fill: var(--series-1); }
+  .chart .bar.hl { fill: var(--accent); }
+  .chart .col:hover .bar { opacity: .75; }
+  .chart .hit { fill: transparent; cursor: pointer; }
+  .chart .gridline, .eq-chart .gridline { stroke: var(--grid); stroke-width: 1; }
+  .chart .avg { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .chart text { fill: var(--text-secondary); font-size: 10px; }
+  .chart text.avg-label { fill: var(--text-muted); font-size: 11px; }
+  .eq-chart .line { fill: none; stroke: var(--series-1); stroke-width: 2; }
+  .eq-chart .zero { stroke: var(--text-muted); stroke-width: 1; }
+  .eq-chart .cross { stroke: var(--text-muted); stroke-width: 1; }
+  .eq-chart .dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .eq-chart text { fill: var(--text-secondary); font-size: 11px; }
+  .hotcold { display: flex; gap: 12px 32px; flex-wrap: wrap; margin-top: 14px; font-size: 13px; color: var(--text-secondary); }
+  .hotcold .grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hotcold .chip { display: inline-flex; align-items: center; gap: 4px; color: var(--text-primary); }
+  .wave-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+
+  .tip { position: fixed; pointer-events: none; z-index: 30; background: var(--surface-1); color: var(--text-primary);
+         border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.5;
+         box-shadow: 0 6px 20px rgba(0,0,0,.15); white-space: nowrap; }
+  .tip b { font-size: 15px; }
+  .tip .sub { color: var(--text-secondary); }
+  footer { font-size: 12px; color: var(--text-muted); text-align: center; padding-top: 4px; }
+
+  /* ---------- 字級切換（長輩友善）：整頁等比放大 ---------- */
+  .viz-root[data-size="l"]  { zoom: 1.15; }
+  .viz-root[data-size="xl"] { zoom: 1.3; }
+  .size-btn { white-space: nowrap; }
+  #settingsCard.collapsed .fields, #settingsCard.collapsed details.help { display: none; }
+  #settingsCard.collapsed .card-head { margin-bottom: 0; }
+
+  /* ---------- 手機版面 ---------- */
+  @media (max-width: 760px) {
+    body { font-size: 16px; }
+    .wrap { padding: 12px 10px calc(84px + env(safe-area-inset-bottom)); gap: 12px; }
+    .appbar-inner { height: 54px; padding: 0 10px; gap: 8px; }
+    .brand { font-size: 17px; min-width: 0; }
+    .brand span.full { overflow: hidden; text-overflow: ellipsis; }
+    .appbar .btn { padding: 8px 10px; font-size: 15px; }
+    .latest .balls { flex-wrap: wrap; }
+    .toolbar .find { flex-wrap: wrap; }
+    .status { display: none; }
+    .status.error { display: block; position: fixed; left: 10px; right: 10px; top: 60px; z-index: 30; white-space: normal;
+                    background: var(--surface-1); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+    #refresh { margin-left: auto; }
+
+    /* 分頁改成底部大按鈕，拇指好按 */
+    .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; height: calc(64px + env(safe-area-inset-bottom));
+           padding-bottom: env(safe-area-inset-bottom); background: var(--surface-1); border-top: 1px solid var(--border);
+           box-shadow: 0 -2px 12px rgba(0,0,0,.08); }
+    .nav button { flex: 1; font-size: 17px; border-bottom: 0; border-top: 3px solid transparent; }
+    .nav button.active { color: var(--primary); border-top-color: var(--primary); }
+
+    .card { padding: 14px 12px; border-radius: 12px; }
+    .card-head h2, .card > h2 { font-size: 18px; }
+    .card-head .sub { font-size: 13px; }
+    .pane h2 { font-size: 17px; }
+    h3 { font-size: 16px; }
+    .latest { padding: 14px 12px; gap: 10px 14px; }
+    .latest .date { font-size: 21px; }
+    .latest .label { font-size: 14px; }
+    .latest .balls .ball { width: 40px; height: 40px; font-size: 18px; }
+    .latest .next { margin-left: 0; width: 100%; font-size: 14px; }
+    .ball { width: 32px; height: 32px; font-size: 15px; }
+
+    table { font-size: 15px; }
+    th { font-size: 13px; }
+    th, td { padding: 10px; white-space: nowrap; }
+    .table-scroll { max-height: 70vh; -webkit-overflow-scrolling: touch; }
+    .kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .kpis > div { font-size: 13px; padding: 10px 12px; }
+    .kpis b { font-size: 19px; }
+
+    .fields { grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+    .field > span { font-size: 13px; }
+    .field-action { grid-column: 1 / -1; }
+    input[type=number], input[type=date], select { font-size: 16px; padding: 10px; }   /* 16px：iPhone 點輸入框不會自動放大 */
+    input[type=checkbox], input[type=radio] { width: 20px; height: 20px; }
+    .btn { font-size: 15px; padding: 9px 14px; }
+    .btn-primary { width: 100%; padding: 13px; font-size: 18px; }
+    .toolbar { gap: 12px 16px; }
+    .seg { width: 100%; overflow-x: auto; }
+    .seg button { flex: 1; font-size: 15px; padding: 9px 6px; white-space: nowrap; }
+    .find { font-size: 15px; }
+    .summary { font-size: 15px; }
+    .form-row { font-size: 15px; }
+    .actions { gap: 10px; }
+
+    /* 49 根長條和走勢圖在手機上可以左右滑動 */
+    .chart { overflow-x: auto; }
+    .chart svg { min-width: 760px; }
+    .eq-chart { overflow-x: auto; }
+    .eq-chart svg { min-width: 640px; }
+    .hotcold { font-size: 14px; }
+
+    .subtabs { margin: 0 -12px 14px; padding: 0 4px; }
+    .subtabs button { font-size: 15px; padding: 12px; }
+    .note, details.help, .wd { font-size: 13px; }
+    .advice { padding: 12px; font-size: 15px; }
+    .unit-in { width: 76px; font-size: 18px; padding: 8px 6px; }
+    .tail-pick button { flex: 1 1 28%; padding: 10px 12px; font-size: 16px; }
+    footer { font-size: 12px; padding: 0 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="viz-root">
+
+<header class="appbar">
+  <div class="appbar-inner">
+    <div class="brand"><span class="logo">6</span><span class="full">香港六合彩 分析</span></div>
+    <nav class="nav" id="tabs">
+      <button data-view="stats" class="active">開獎統計</button>
+      <button data-view="bet">虛擬下注</button>
+      <button data-view="sim">模擬推演</button>
+    </nav>
+    <span class="status" id="status">載入中…</span>
+    <button class="btn" id="refresh">更新</button>
+    <button class="btn size-btn" id="sizeBtn" title="切換字體大小">字：標準</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="card latest" id="latest"><div class="loading">取得最新開獎資料中…</div></section>
+
+  <section class="card" id="settingsCard" hidden>
+    <div class="card-head"><h2>下注設定</h2><span class="sub" id="setSummary">虛擬下注與模擬推演共用・會自動記住</span>
+      <button class="btn" id="setToggle" style="margin-left: auto">收合</button></div>
+    <div class="fields">
+      <div class="field"><span>每個號碼一份</span><div class="ctl"><input id="setPrice" type="number" min="1"> 元</div></div>
+      <div class="field"><span>中 1 支拿回</span><div class="ctl"><input id="setPayout" type="number" min="1"> 元</div></div>
+      <div class="field"><span>每輪目標獲利（中了至少賺）</span><div class="ctl"><input id="setTarget" type="number" min="0" step="100"> 元</div></div>
+      <div class="field"><span>停損：最多追幾期（0 = 不限）</span><div class="ctl"><input id="setMaxDraws" type="number" min="0"> 期</div></div>
+      <div class="field"><span>停損：本金上限（0 = 不限）</span><div class="ctl"><input id="setBudget" type="number" min="0" step="1000"> 元</div></div>
+      <div class="field"><span>每輪開頭固定幾期（0 = 不使用）</span><div class="ctl"><input id="setStartDraws" type="number" min="0"> 期</div></div>
+      <div class="field"><span>開頭每期固定下</span><div class="ctl"><input id="setStartUnits" type="number" min="1"> 支</div></div>
+    </div>
+    <details class="help"><summary>規則說明</summary><div id="setInfo"></div></details>
+  </section>
+
+  <div id="viewBet" class="stack" hidden>
+    <section class="card" id="roundCard"></section>
+    <section class="card">
+      <div class="card-head"><h2>已存檔的紀錄</h2></div>
+      <div id="archive"></div>
+    </section>
+  </div>
+
+  <div id="viewSim" class="stack" hidden>
+    <section class="card">
+      <div class="card-head"><h2>模擬推演</h2><span class="sub">用過去的開獎紀錄測試下法</span></div>
+      <div class="fields">
+        <div class="field"><span>尾數</span><div class="ctl"><select id="simTail">
+          <option value="all">全部 0～9 尾</option>
+          <option value="0">0 尾（10 20 30 40）</option>
+          <option value="1">1 尾（01 11 21 31 41）</option>
+          <option value="2">2 尾（02 12 22 32 42）</option>
+          <option value="3">3 尾（03 13 23 33 43）</option>
+          <option value="4">4 尾（04 14 24 34 44）</option>
+          <option value="5">5 尾（05 15 25 35 45）</option>
+          <option value="6" selected>6 尾（06 16 26 36 46）</option>
+          <option value="7">7 尾（07 17 27 37 47）</option>
+          <option value="8">8 尾（08 18 28 38 48）</option>
+          <option value="9">9 尾（09 19 29 39 49）</option></select></div></div>
+        <div class="field"><span>推演範圍：往前幾期</span><div class="ctl">
+          <label><input type="radio" name="simStartMode" value="back" checked></label><input id="simBack" type="number" min="1" value="100"> 期</div></div>
+        <div class="field"><span>或：從日期開始</span><div class="ctl">
+          <label><input type="radio" name="simStartMode" value="date"></label><input id="simDate" type="date"></div></div>
+        <div class="field"><span>每期下注</span><div class="ctl"><select id="simStrategy">
+          <option value="recover">自動算支數（達目標獲利）</option>
+          <option value="fixed">固定支數</option></select></div></div>
+        <div class="field" id="simTargetWrap"><span>每輪目標獲利</span><div class="ctl"><input id="simTarget" type="number" min="0" step="100"> 元</div></div>
+        <div class="field" id="simFixedWrap" hidden><span>每期固定</span><div class="ctl"><input id="simFixed" type="number" min="1" value="1"> 支</div></div>
+        <div class="field"><span>進場條件：連續未開滿（0 = 立刻）</span><div class="ctl"><input id="simEntry" type="number" min="0" value="0"> 期</div></div>
+        <div class="field field-action"><span>&nbsp;</span><div class="ctl"><button class="btn btn-primary" id="simRun">開始模擬</button></div></div>
+      </div>
+      <div id="simRange" class="range-line"></div>
+      <div class="note" id="simStatus" style="margin: 8px 0 0"></div>
+      <details class="help"><summary>說明</summary><div>目標獲利、停損條件、開頭支數使用上方「下注設定」。從推演範圍的第一期開始追到最新一期，每輪回本（或達標）或停損後，下一期立刻用同一個尾數開新的一輪。尾數選「全部」可以一次比較 0～9 尾；用「從日期開始」可以照你實際進場的日期推演（進場條件填 0）。</div></details>
+    </section>
+    <section class="card" id="simResult" hidden></section>
+  </div>
+
+  <div id="viewStats" class="stack">
+    <section class="card">
+      <div class="toolbar">
+        <div class="seg" id="ranges">
+          <button data-months="1" class="active">1 個月</button>
+          <button data-months="3">3 個月</button>
+          <button data-months="6">半年</button>
+          <button data-months="12">1 年</button>
+          <button data-months="24">2 年</button>
+        </div>
+        <label class="find"><input id="withSpecial" type="checkbox"> 統計含特別號</label>
+        <label class="find">查號碼 <input id="find" type="number" min="1" max="49" placeholder="1-49"></label>
+        <label class="find"><input id="onlyHit" type="checkbox" checked> 只顯示含此號的期數</label>
+      </div>
+      <div class="summary" id="summary"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2 id="chartTitle">各號碼出現次數</h2></div>
+      <div class="chart" id="chart"></div>
+      <div class="hotcold" id="hotcold"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>特別號尾數統計</h2><span class="sub">點標題可排序</span></div>
+      <div class="note" id="tailsNote"></div>
+      <div class="table-scroll"><table id="tails"></table></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="card-head"><h2>開獎紀錄</h2><span class="sub" id="drawsInfo"></span></div>
+        <div class="table-scroll" style="max-height: 1060px"><table id="draws"></table></div>
+      </section>
+      <div class="stack">
+        <section class="card">
+          <div class="card-head"><h2>特別號統計</h2><span class="sub">點標題可排序</span></div>
+          <div class="note" id="specialNote"></div>
+          <div class="table-scroll" style="max-height: 460px"><table id="special"></table></div>
+        </section>
+        <section class="card">
+          <div class="card-head"><h2>正碼統計</h2><span class="sub">點標題可排序</span></div>
+          <div class="note" id="statsNote"></div>
+          <div class="table-scroll" style="max-height: 460px"><table id="stats"></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <footer>資料來源：香港賽馬會官方資料（info.cld.hkjc.com）・每次開啟即時抓取本月資料，過去月份暫存在瀏覽器・通常逢週二、四、六或日 21:30 開獎（遇賽馬日程或節日會調整）</footer>
+</main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const API = 'https://info.cld.hkjc.com/graphql/base/';
+// HKJC only accepts whitelisted queries, so this must stay byte-for-byte what their site sends.
+const QUERY = 'fragment lotteryDrawsFragment on LotteryDraw {\n  id\n  year\n  no\n  openDate\n  closeDate\n  drawDate\n  status\n  snowballCode\n  snowballName_en\n  snowballName_ch\n  lotteryPool {\n    sell\n    status\n    totalInvestment\n    jackpot\n    unitBet\n    estimatedPrize\n    derivedFirstPrizeDiv\n    lotteryPrizes {\n      type\n      winningUnit\n      dividend\n    }\n  }\n  drawResult {\n    drawnNo\n    xDrawnNo\n  }\n}\n\nquery marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $drawType: LotteryDrawType) {\n  lotteryDraws(\n    lastNDraw: $lastNDraw\n    startDate: $startDate\n    endDate: $endDate\n    drawType: $drawType\n  ) {\n    ...lotteryDrawsFragment\n  }\n}';
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+const MAXN = 49;
+
+const RED = [1, 2, 7, 8, 12, 13, 18, 19, 23, 24, 29, 30, 34, 35, 40, 45, 46];
+const BLUE = [3, 4, 9, 10, 14, 15, 20, 25, 26, 31, 36, 37, 41, 42, 47, 48];
+const wave = n => RED.includes(n) ? 'red' : BLUE.includes(n) ? 'blue' : 'green';
+const WAVE_NAME = { red: '紅波', blue: '藍波', green: '綠波' };
+
+const state = {
+  months: 1,
+  withSpecial: false,
+  highlight: null,
+  onlyHit: true,
+  sort: { stats: { key: 'num', dir: 1 }, special: { key: 'spMiss', dir: -1 }, tails: { key: 'num', dir: 1 } },
+  byMonth: {},       // 'YYYY-MM' -> draws[] already fetched this session
+  history: null,     // every draw from now back until all 49 numbers have appeared (for 未開期數)
+  historyLoading: false,
+  stale: false,
+};
+
+const byDateDesc = (a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const ym = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+const ymd = d => `${ym(d)}-${pad(d.getDate())}`;
+const weekday = s => { const [y, m, d] = s.split('-').map(Number); return WEEKDAYS[new Date(y, m - 1, d).getDay()]; };
+
+// The start date N months ago, clamped so e.g. May 31 - 3 months = Feb 28, not Mar 3.
+function rangeStart(months) {
+  const t = new Date();
+  const y = t.getFullYear(), m = t.getMonth() - months;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return new Date(y, m, Math.min(t.getDate(), lastDay) + 1);
+}
+
+function monthList(start) {
+  const out = [];
+  const end = ym(new Date());
+  for (let d = new Date(start.getFullYear(), start.getMonth(), 1); ym(d) <= end; d.setMonth(d.getMonth() + 1)) out.push(ym(d));
+  return out;
+}
+
+function readCache(m) {
+  try { return JSON.parse(localStorage.getItem('m6:' + m)); } catch { return null; }
+}
+function writeCache(m, val) {
+  try { localStorage.setItem('m6:' + m, JSON.stringify(val)); } catch {}
+}
+
+async function fetchMonth(m, force) {
+  if (!force && state.byMonth[m]) return state.byMonth[m];
+  const cached = readCache(m);
+  // A month is only safe to reuse from cache if it had already ended when it was fetched.
+  if (!force && cached && cached.complete) return (state.byMonth[m] = cached.data);
+
+  const [y, mo] = m.split('-').map(Number);
+  const variables = {
+    lastNDraw: null,
+    startDate: `${y}${pad(mo)}01`,
+    endDate: `${y}${pad(mo)}${pad(new Date(y, mo, 0).getDate())}`,
+    drawType: 'All',
+  };
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operationName: 'marksixResult', variables, query: QUERY }),
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      if (json.errors) throw new Error(json.errors[0].message || 'API 回傳錯誤');
+      const data = (json.data.lotteryDraws || [])
+        .filter(r => r.drawResult && r.drawResult.drawnNo && r.drawResult.drawnNo.length === 6)
+        .map(r => ({
+          id: r.id,
+          period: `${r.year}/${pad(r.no).padStart(3, '0')}`,
+          date: r.drawDate.slice(0, 10),
+          nums: [...r.drawResult.drawnNo].sort((a, b) => a - b),
+          special: r.drawResult.xDrawnNo,
+          snowball: r.snowballName_ch || '',
+        }));
+      writeCache(m, { complete: m < ym(new Date()), data });
+      return (state.byMonth[m] = data);
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
+  if (cached) { state.stale = true; return (state.byMonth[m] = cached.data); }
+  throw lastErr;
+}
+
+// Run at most `limit` month requests at a time so we don't hammer the server.
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => { while (next < items.length) { const i = next++; out[i] = await fn(items[i]); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+async function load(force = false) {
+  const status = $('status');
+  status.className = 'status';
+  status.textContent = '更新中…';
+  state.stale = false;
+  if (force) { state.byMonth = {}; state.history = null; }
+  const start = rangeStart(state.months);
+  try {
+    // The current month is always fetched fresh on first load (never trusted from cache).
+    const lists = await mapLimit(monthList(start), 4, m => fetchMonth(m, force));
+    const startStr = ymd(start);
+    const draws = lists.flat()
+      .filter(d => d.date >= startStr)
+      .sort(byDateDesc);
+    render(draws, startStr);
+    ensureHistory();
+    const now = new Date();
+    status.textContent = (state.stale ? '⚠ 網路異常，部分資料來自暫存 ・ ' : '') +
+      `更新於 ${ymd(now)} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    if (state.stale) status.className = 'status error';
+  } catch (e) {
+    status.className = 'status error';
+    status.textContent = '⚠ 無法取得資料：' + e.message + '（請確認網路後按「重新整理」）';
+  }
+}
+
+// Walk back month by month until every number has shown up both as 正碼 and as 特別號,
+// so 未開期數 is exact instead of capped at the selected range. Past months come from cache.
+async function ensureHistory() {
+  if (state.history || state.historyLoading) return;
+  state.historyLoading = true;
+  try {
+    const seenMain = new Set(), seenSp = new Set();
+    const all = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let batch = 0; batch < 30 && (seenMain.size < MAXN || seenSp.size < MAXN); batch++) {
+      const months = [];
+      for (let i = 0; i < 4; i++) { months.push(ym(d)); d.setMonth(d.getMonth() - 1); }
+      const lists = await mapLimit(months, 4, m => fetchMonth(m));
+      lists.flat().forEach(x => {
+        all.push(x);
+        x.nums.forEach(n => seenMain.add(n));
+        seenSp.add(x.special);
+      });
+    }
+    state.history = all.sort(byDateDesc);
+  } catch (e) {
+    // Keep the range-only numbers; the notes say they are lower bounds.
+  } finally {
+    state.historyLoading = false;
+  }
+  restat();
+}
+
+const ball = n => `<span class="ball ${wave(n)}${n === state.highlight ? ' hl' : ''}" data-n="${n}" title="${pad(n)} ${WAVE_NAME[wave(n)]}">${pad(n)}</span>`;
+const drawBalls = d => `<span class="balls">${d.nums.map(ball).join('')}<span class="plus">+</span>${ball(d.special)}<span class="wd">${d.special % 10}尾</span></span>`;
+const hits = (d, n) => d.nums.includes(n) || d.special === n;
+
+// Counts come from the selected range; 未開期數 / 最後開出 come from the full history when loaded.
+function computeStats(draws) {
+  const src = state.history || draws;
+  const stats = [];
+  for (let n = 1; n <= MAXN; n++) {
+    stats.push({ num: n, main: 0, sp: 0, count: 0, miss: null, last: null, spMiss: null, spLast: null, spPeriod: null });
+  }
+  draws.forEach(d => {
+    d.nums.forEach(n => stats[n - 1].main++);
+    stats[d.special - 1].sp++;
+  });
+  src.forEach((d, i) => {
+    const counted = state.withSpecial ? [...d.nums, d.special] : d.nums;
+    counted.forEach(n => {
+      const s = stats[n - 1];
+      if (s.last === null) { s.miss = i; s.last = d.date; }
+    });
+    const s = stats[d.special - 1];
+    if (s.spLast === null) { s.spMiss = i; s.spLast = d.date; s.spPeriod = d.period; }
+  });
+  stats.forEach(s => {
+    s.count = s.main + (state.withSpecial ? s.sp : 0);
+    if (s.last === null) s.miss = src.length;
+    if (s.spLast === null) s.spMiss = src.length;
+  });
+  return stats;
+}
+
+// 特別號尾數: group 0-9 by last digit (06 16 26 36 46 = 6 尾). `num` doubles as the tail for sorting.
+function computeTails(draws) {
+  const src = state.history || draws;
+  const tails = [];
+  for (let t = 0; t <= 9; t++) {
+    tails.push({ num: t, nums: tailNums(t), count: 0, miss: null, last: null, period: null, hit: null });
+  }
+  draws.forEach(d => tails[d.special % 10].count++);
+  src.forEach((d, i) => {
+    const t = tails[d.special % 10];
+    if (t.last === null) { t.miss = i; t.last = d.date; t.period = d.period; t.hit = d.special; }
+  });
+  tails.forEach(t => { if (t.last === null) t.miss = src.length; });
+  return tails;
+}
+
+let current = { draws: [], stats: [], tails: [], startStr: '' };
+
+function render(draws, startStr) {
+  current = { draws, startStr, stats: computeStats(draws), tails: computeTails(draws) };
+  renderAll();
+}
+
+function restat() {
+  current.stats = computeStats(current.draws);
+  current.tails = computeTails(current.draws);
+  renderAll();
+}
+
+function renderLatest() {
+  const latest = current.draws[0];
+  if (!latest) { $('latest').innerHTML = '<div class="loading">此區間沒有開獎資料</div>'; return; }
+  $('latest').innerHTML = `
+    <div class="meta">
+      <span class="label">最新一期 第 ${latest.period} 期${latest.snowball ? `<span class="tag">${latest.snowball}</span>` : ''}</span>
+      <span class="date">${latest.date}（${weekday(latest.date)}）</span>
+    </div>
+    ${drawBalls(latest)}
+    <span class="next">最後一顆為特別號 ・ 通常逢週二、四、六或日 21:30 開獎</span>`;
+}
+
+function renderAll() {
+  renderLatest();
+  renderSummary();
+  renderChart();
+  renderHotCold();
+  renderDraws();
+  renderStats();
+  renderSpecial();
+  renderTails();
+  renderBet();
+}
+
+function renderTails() {
+  $('tailsNote').textContent = historyNote();
+  const rows = sortRows('tails', current.tails).map(t => `
+    <tr class="${state.highlight && t.nums.includes(state.highlight) ? 'hl' : ''}">
+      <td><b>${t.num} 尾</b></td>
+      <td><span class="balls">${t.nums.map(ball).join('')}</span></td>
+      <td><b>${t.last ? t.miss : '≥ ' + t.miss}</b></td>
+      <td>${t.last || '—'}</td>
+      <td class="muted">${t.period || '—'}</td>
+      <td>${t.hit ? ball(t.hit) : '—'}</td>
+      <td>${t.count}</td>
+    </tr>`).join('');
+  $('tails').innerHTML = `<thead><tr>
+      ${sortHeader('tails', 'num', '尾數')}
+      <th>號碼</th>
+      ${sortHeader('tails', 'miss', '已有幾期未開')}
+      <th>最後開出日期</th>
+      <th>期別</th>
+      <th>當時開出</th>
+      ${sortHeader('tails', 'count', rangeLabel() + '次數')}
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+function rangeLabel() {
+  return { 1: '近 1 個月', 3: '近 3 個月', 6: '近半年', 12: '近 1 年', 24: '近 2 年' }[state.months];
+}
+
+function historyNote() {
+  const h = state.history;
+  if (h && h.length) return `「未開期數」從最新一期往回算（已查到 ${h[h.length - 1].date}，共 ${h.length} 期）`;
+  return state.historyLoading ? '正在往前查完整歷史，未開期數稍後會更新…' : '未開期數僅以目前區間計算（≥ 表示至少）';
+}
+
+const sortHeader = (table, key, label) => {
+  const s = state.sort[table];
+  return `<th class="sortable" data-k="${key}">${label}${key === s.key ? (s.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+};
+
+const sortRows = (table, stats) => {
+  const { key, dir } = state.sort[table];
+  return [...stats].sort((a, b) => (a[key] - b[key]) * dir || a.num - b.num);
+};
+
+function renderSpecial() {
+  const { stats } = current;
+  $('specialNote').textContent = historyNote();
+  const rows = sortRows('special', stats).map(s => `
+    <tr class="${s.num === state.highlight ? 'hl' : ''}">
+      <td>${ball(s.num)}</td>
+      <td><b>${s.spLast ? s.spMiss : '≥ ' + s.spMiss}</b></td>
+      <td>${s.spLast || '—'}</td>
+      <td class="muted">${s.spPeriod || '—'}</td>
+      <td>${s.sp}</td>
+    </tr>`).join('');
+  $('special').innerHTML = `<thead><tr>
+      ${sortHeader('special', 'num', '號碼')}
+      ${sortHeader('special', 'spMiss', '已有幾期未開')}
+      <th>最後開出日期</th>
+      <th>期別</th>
+      ${sortHeader('special', 'sp', rangeLabel() + '次數')}
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+function renderSummary() {
+  const { draws, stats, startStr } = current;
+  let html = `區間 <b>${startStr}</b> ～ <b>${ymd(new Date())}</b> ・ 共 <b>${draws.length}</b> 期`;
+  const h = state.highlight;
+  if (h) {
+    const s = stats[h - 1];
+    html += ` ・ 號碼 <b>${pad(h)}</b>（${WAVE_NAME[wave(h)]}）正碼開出 <b>${s.main}</b> 次、特別號 <b>${s.sp}</b> 次` +
+      (s.last ? `，正碼上次 ${s.last}（已 <b>${s.miss}</b> 期未開）` : '') +
+      (s.spLast ? `，特別號上次 ${s.spLast}（已 <b>${s.spMiss}</b> 期未開）` : '');
+  }
+  $('summary').innerHTML = html;
+}
+
+function barPath(x, y, w, h, r) {
+  if (h <= 0) return '';
+  r = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+function niceStep(max) {
+  const raw = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const f = raw / mag;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mag;
+}
+
+function renderChart() {
+  const { draws, stats } = current;
+  $('chartTitle').textContent = state.withSpecial ? '各號碼出現次數（正碼＋特別號）' : '各號碼出現次數（正碼）';
+  const W = 980, H = 270, ml = 34, mr = 8, mt = 28, mb = 26;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  const maxCount = Math.max(1, ...stats.map(s => s.count));
+  const step = Math.max(1, Math.ceil(niceStep(maxCount)));
+  const top = Math.ceil(maxCount / step) * step;
+  const y = v => mt + ph - (v / top) * ph;
+  const colW = pw / MAXN, gap = 2, barW = colW - 2 * gap;
+  const avg = draws.length * (state.withSpecial ? 7 : 6) / MAXN;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="各號碼在此區間的出現次數">`;
+  for (let v = 0; v <= top; v += step) {
+    svg += `<line class="gridline" x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}"/>`;
+    svg += `<text x="${ml - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  stats.forEach((s, i) => {
+    const x = ml + i * colW;
+    const by = y(s.count);
+    svg += `<g class="col" data-n="${s.num}">
+      <path class="bar${s.num === state.highlight ? ' hl' : ''}" d="${barPath(x + gap, by, barW, mt + ph - by, 4)}"/>
+      <rect class="hit" x="${x}" y="${mt}" width="${colW}" height="${ph + mb}"/>
+      <text x="${x + colW / 2}" y="${H - 8}" text-anchor="middle">${pad(s.num)}</text>
+    </g>`;
+  });
+  if (draws.length) {
+    svg += `<line class="avg" x1="${ml}" x2="${W - mr}" y1="${y(avg)}" y2="${y(avg)}"/>`;
+    svg += `<line class="avg" x1="${W - mr - 96}" x2="${W - mr - 72}" y1="10" y2="10"/>`;
+    svg += `<text class="avg-label" x="${W - mr}" y="14" text-anchor="end">平均 ${avg.toFixed(1)} 次</text>`;
+  }
+  svg += '</svg>';
+  $('chart').innerHTML = svg;
+
+  const tip = $('tip');
+  $('chart').querySelectorAll('.col').forEach(g => {
+    const s = stats[g.dataset.n - 1];
+    g.addEventListener('mousemove', e => {
+      tip.innerHTML = `<b>${pad(s.num)}</b> 號（${WAVE_NAME[wave(s.num)]}）<br>
+        <span class="sub">正碼 ${s.main} 次、特別號 ${s.sp} 次</span><br>
+        <span class="sub">正碼${s.last ? `上次 ${s.last}，已 ${s.miss} 期未開` : `已 ≥ ${s.miss} 期未開`}</span><br>
+        <span class="sub">特別號${s.spLast ? `上次 ${s.spLast}，已 ${s.spMiss} 期未開` : `已 ≥ ${s.spMiss} 期未開`}</span>`;
+      tip.hidden = false;
+      const tx = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+      tip.style.left = tx + 'px';
+      tip.style.top = (e.clientY - tip.offsetHeight - 10) + 'px';
+    });
+    g.addEventListener('mouseleave', () => { tip.hidden = true; });
+    g.addEventListener('click', () => toggleHighlight(s.num));
+  });
+}
+
+function renderHotCold() {
+  const { stats, draws } = current;
+  if (!draws.length) { $('hotcold').innerHTML = ''; return; }
+  const hot = [...stats].sort((a, b) => b.count - a.count || a.miss - b.miss).slice(0, 6);
+  const cold = [...stats].sort((a, b) => a.count - b.count || b.miss - a.miss).slice(0, 6);
+  const longMiss = [...stats].sort((a, b) => b.miss - a.miss).slice(0, 6);
+  const spLongMiss = [...stats].sort((a, b) => b.spMiss - a.spMiss).slice(0, 6);
+  const chips = (list, f) => list.map(s => `<span class="chip">${ball(s.num)}${f(s)}</span>`).join('');
+
+  const waves = { red: 0, blue: 0, green: 0 };
+  draws.forEach(d => (state.withSpecial ? [...d.nums, d.special] : d.nums).forEach(n => waves[wave(n)]++));
+  const total = waves.red + waves.blue + waves.green;
+  const waveHtml = Object.keys(waves).map(k =>
+    `<span class="chip"><span class="wave-dot" style="background:var(--wave-${k})"></span>${WAVE_NAME[k]} ${waves[k]} 次（${(waves[k] / total * 100).toFixed(0)}%）</span>`).join('');
+
+  $('hotcold').innerHTML = `
+    <div class="grp">最常開出：${chips(hot, s => s.count + ' 次')}</div>
+    <div class="grp">最少開出：${chips(cold, s => s.count + ' 次')}</div>
+    <div class="grp">最久未開：${chips(longMiss, s => s.miss + ' 期')}</div>
+    <div class="grp">特別號最久未開：${chips(spLongMiss, s => s.spMiss + ' 期')}</div>
+    <div class="grp">波色分布：${waveHtml}</div>`;
+}
+
+function renderDraws() {
+  let { draws } = current;
+  const h = state.highlight;
+  if (h && state.onlyHit) draws = draws.filter(d => hits(d, h));
+  $('drawsInfo').textContent = h
+    ? (state.onlyHit ? `（只顯示有 ${pad(h)} 的 ${draws.length} 期（正碼或特別號），共 ${current.draws.length} 期）` : `（${pad(h)} 以橘框標示）`)
+    : `（共 ${current.draws.length} 期）`;
+  const rows = draws.map(d => `
+    <tr class="${h && hits(d, h) ? 'hl' : ''}">
+      <td>${d.date} <span class="wd">(${weekday(d.date)})</span></td>
+      <td class="muted">${d.period}${d.snowball ? `<br><span class="tag">${d.snowball}</span>` : ''}</td>
+      <td>${drawBalls(d)}</td>
+    </tr>`).join('');
+  $('draws').innerHTML = `<thead><tr><th>日期</th><th>期別</th><th>開獎號碼（+ 特別號）</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="3" class="muted">沒有符合的資料</td></tr>'}</tbody>`;
+}
+
+function renderStats() {
+  const { stats } = current;
+  $('statsNote').textContent = historyNote() + (state.withSpecial ? '，含特別號' : '');
+  const rows = sortRows('stats', stats).map(s => `
+    <tr class="${s.num === state.highlight ? 'hl' : ''}">
+      <td>${ball(s.num)}</td>
+      <td>${s.main}</td>
+      <td>${s.last ? s.miss : '≥ ' + s.miss}</td>
+      <td class="muted">${s.last || '—'}</td>
+    </tr>`).join('');
+  $('stats').innerHTML = `<thead><tr>
+      ${sortHeader('stats', 'num', '號碼')}
+      ${sortHeader('stats', 'main', rangeLabel() + '次數')}
+      ${sortHeader('stats', 'miss', '未開期數')}
+      <th>上次開出</th>
+    </tr></thead><tbody>${rows}</tbody>`;
+}
+
+function toggleHighlight(n) {
+  state.highlight = state.highlight === n ? null : n;
+  $('find').value = state.highlight || '';
+  renderAll();
+}
+
+// ===================== 虛擬下注 & 模擬推演（特別號尾數） =====================
+// 1 支 = every number in the tail once (6 尾 = 5 份 = 400 元). A session follows one tail from
+// `startDate` and is split into rounds: a round ends when a hit lifts the round total to the
+// target (回本) or a stop-loss triggers (停損); the next draw immediately starts a new round at 0.
+
+function tailNums(t) {
+  const nums = [];
+  for (let n = t || 10; n <= MAXN; n += 10) nums.push(n);
+  return nums;
+}
+
+const BET_DEFAULTS = { price: 80, payout: 3600, target: 0, maxDraws: 0, budget: 0, startDraws: 0, startUnits: 1 };
+const BET_KEY = 'm6:bet';
+const bet = (() => {
+  const def = { settings: {}, round: null, archive: [], pickTail: 6, pickMode: 'back', pickBack: 30, autoSuggest: true };
+  let b;
+  try { b = Object.assign(def, JSON.parse(localStorage.getItem(BET_KEY)) || {}); } catch { b = def; }
+  b.settings = Object.assign({}, BET_DEFAULTS, b.settings);
+  // Earlier versions stored 支數 per number; keep the smallest count as whole-tail 支數.
+  if (b.round) {
+    b.round.rows = (b.round.rows || []).map(r =>
+      r && r.bets ? { units: Math.min(...tailNums(b.round.tail).map(n => Number(r.bets[n]) || 0)) } : r);
+  }
+  return b;
+})();
+const saveBet = () => { try { localStorage.setItem(BET_KEY, JSON.stringify(bet)); } catch {} };
+
+const money = v => (v < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('en-US');
+const signed = v => `<span class="money ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${money(v)}</span>`;
+
+// Every fetch walks back contiguously from the current month, so the union of fetched months
+// is an unbroken run of draws ending at the latest one.
+const allDrawsAsc = () => Object.values(state.byMonth).flat().sort((a, b) => byDateDesc(b, a));
+const drawsAfter = date => allDrawsAsc().filter(d => d.date > date);
+
+// Make sure at least n + 1 draws are loaded (the extra one marks the start of "前 n 期").
+async function ensureDrawsBack(n, onProgress) {
+  const d = new Date();
+  d.setDate(1);
+  for (let guard = 0; allDrawsAsc().length < n + 1 && guard < 40; guard++) {
+    const months = [];
+    for (let i = 0; i < 4; i++) { months.push(ym(d)); d.setMonth(d.getMonth() - 1); }
+    if (onProgress) onProgress(allDrawsAsc().length);
+    await mapLimit(months, 4, m => fetchMonth(m));
+  }
+}
+
+// Start date such that the first bet lands on the n-th most recent draw.
+function startDateBack(n) {
+  const desc = allDrawsAsc().reverse();
+  return desc[n] ? desc[n].date : '0000-00-00';
+}
+
+// Smallest 支數 so a hit this draw brings the round total up to the target.
+// Net of 1 支 when it hits = payout - price × k (6 尾: 3600 - 400 = 3200).
+function suggestM(cumBefore, k) {
+  const { price, payout, target } = bet.settings;
+  const perSet = payout - price * k;
+  if (perSet <= 0) return null;
+  return Math.max(1, Math.ceil((target - cumBefore) / perSet));
+}
+
+// 支數 the plan calls for when `played` draws of the round are done: the fixed opening 支數 for
+// the first `startDraws` draws, then whatever reaches the target profit.
+function plannedUnits(cumBefore, played, k) {
+  const { startDraws, startUnits } = bet.settings;
+  return startDraws && played < startDraws ? startUnits : suggestM(cumBefore, k);
+}
+
+// Estimated upcoming draw dates: Mark Six draws three times a week, so take the three most common
+// weekdays among the last 30 draws and step forward from the latest draw.
+function drawWeekdays() {
+  const cnt = [0, 0, 0, 0, 0, 0, 0];
+  allDrawsAsc().slice(-30).forEach(d => { const [y, m, dd] = d.date.split('-').map(Number); cnt[new Date(y, m - 1, dd).getDay()]++; });
+  return cnt.map((c, i) => [c, i]).sort((a, b) => b[0] - a[0]).slice(0, 3).map(x => x[1]).sort();
+}
+function upcomingDates(count) {
+  const last = allDrawsAsc().slice(-1)[0];
+  if (!last) return [];
+  const days = drawWeekdays();
+  const [y, m, dd] = last.date.split('-').map(Number);
+  const d = new Date(y, m - 1, dd);
+  const out = [];
+  while (out.length < count) {
+    d.setDate(d.getDate() + 1);
+    if (days.includes(d.getDay())) out.push(ymd(d));
+  }
+  return out;
+}
+const dateCell = s => s ? `${s.slice(5)}（${weekday(s)}）` : '';
+const datesNote = () => `日期是預估：依近期每週開獎的星期（${drawWeekdays().map(i => WEEKDAYS[i]).join('、')}）往後推算，遇節日或賽馬日程調整會變動，實際以官方公布為準。`;
+
+// 遺漏期數 buckets for the "does a long drought make a hit more likely?" check.
+const STREAK_BUCKETS = [[0, 4], [5, 9], [10, 14], [15, 19], [20, 29], [30, Infinity]];
+const bucketOf = s => STREAK_BUCKETS.findIndex(([a, b]) => s >= a && s <= b);
+
+// Shared engine for the ledger and the simulation. getUnits(i, suggest) picks the 支數 for
+// draw i; nextUnits(cum) is what the next draw would need, used by the 本金上限 check.
+// opts.entryMiss: only start a round once the tail has missed that many draws in a row
+// (after a stop-loss, wait for the tail to hit and the streak to build up again).
+// opts.initStreak: the miss streak going into draws[0].
+function runSession(draws, tail, getUnits, nextUnits, opts = {}) {
+  const { price, payout, target, maxDraws, budget } = bet.settings;
+  const k = tailNums(tail).length;
+  nextUnits = nextUnits || ((cum, played) => plannedUnits(cum, played, k) || 0);
+  const entryMiss = opts.entryMiss || 0;
+  const newRound = no => ({ no, cum: 0, n: 0, start: null, maxCost: 0, minCum: 0, cost: 0, back: 0 });
+  const rows = [], rounds = [];
+  const S = { total: 0, totalCost: 0, totalBack: 0, maxCost: 0, worstRound: 0, peak: 0, maxDD: 0, wins: 0, stops: 0, longest: 0, stopLoss: 0,
+    maxMiss: opts.initStreak || 0, endStreak: 0, cond: STREAK_BUCKETS.map(() => ({ n: 0, hits: 0 })) };
+  let cur = newRound(1);
+  let streak = opts.initStreak || 0, active = !entryMiss, needReset = false;
+  for (let i = 0; i <= draws.length; i++) {
+    const d = draws[i];
+    if (!active && !needReset && streak >= entryMiss) active = true;
+    if (d) {
+      const c = S.cond[bucketOf(streak)];
+      c.n++;
+      if (d.special % 10 === tail) c.hits++;
+    }
+    if (!active) {
+      if (!d) { rows.push({ i, pending: true, idle: true, streak, units: 0, cost: 0, total: S.total }); break; }
+      const tailHit = d.special % 10 === tail;
+      rows.push({ i, draw: d, idle: true, streak, units: 0, cost: 0, back: 0, net: 0, total: S.total, tailHit });
+      if (tailHit) { streak = 0; needReset = false; } else { streak++; S.maxMiss = Math.max(S.maxMiss, streak); }
+      continue;
+    }
+    const suggest = plannedUnits(cur.cum, cur.n, k);
+    const units = getUnits(i, suggest) || 0;
+    const cost = units * k * price;
+    if (!d) { rows.push({ i, pending: true, round: cur.no, roundN: cur.n + 1, before: cur.cum, suggest, units, cost, total: S.total }); break; }
+    const tailHit = d.special % 10 === tail;
+    const back = tailHit ? units * payout : 0;
+    const before = cur.cum;
+    cur.cum += back - cost;
+    cur.n++;
+    cur.cost += cost;
+    cur.back += back;
+    cur.start = cur.start || d.date;
+    cur.maxCost = Math.max(cur.maxCost, cost);
+    cur.minCum = Math.min(cur.minCum, cur.cum);
+    S.total += back - cost;
+    S.totalCost += cost;
+    S.totalBack += back;
+    S.maxCost = Math.max(S.maxCost, cost);
+    S.worstRound = Math.min(S.worstRound, cur.cum);
+    S.peak = Math.max(S.peak, S.total);
+    S.maxDD = Math.min(S.maxDD, S.total - S.peak);
+    const row = { i, draw: d, round: cur.no, roundN: cur.n, suggest, units, cost, back, net: back - cost, before, roundCum: cur.cum, total: S.total, tailHit };
+    // A hit that leaves the round at or above 0 closes it (達標 if it reached the target, else 回本);
+    // a hit that still leaves the round negative keeps it going.
+    if (back > 0 && cur.cum >= 0) { row.end = 'win'; row.hitTarget = cur.cum >= target; }
+    else if (maxDraws && cur.n >= maxDraws) { row.end = 'stop'; row.reason = `已追滿 ${maxDraws} 期`; }
+    else if (budget && -cur.cum + nextUnits(cur.cum, cur.n) * k * price > budget) {
+      row.end = 'stop';
+      row.reason = `下一期需再下 ${money(nextUnits(cur.cum, cur.n) * k * price)}，會超過本金上限 ${money(budget)}`;
+    }
+    row.streak = streak;
+    rows.push(row);
+    if (tailHit) streak = 0; else { streak++; S.maxMiss = Math.max(S.maxMiss, streak); }
+    if (row.end) {
+      rounds.push({ no: cur.no, start: cur.start, end: d.date, n: cur.n, result: row.end, reason: row.reason, net: cur.cum, maxCost: cur.maxCost, minCum: cur.minCum, cost: cur.cost, back: cur.back });
+      if (row.end === 'win') S.wins++;
+      else { S.stops++; S.stopLoss += cur.cum; }
+      S.longest = Math.max(S.longest, cur.n);
+      cur = newRound(cur.no + 1);
+      if (entryMiss) { active = false; needReset = row.end === 'stop'; }
+    }
+  }
+  if (cur.n) {
+    rounds.push({ no: cur.no, start: cur.start, end: null, n: cur.n, result: 'open', net: cur.cum, maxCost: cur.maxCost, minCum: cur.minCum, cost: cur.cost, back: cur.back });
+    S.longest = Math.max(S.longest, cur.n);
+  }
+  S.endStreak = streak;
+  return { k, rows, rounds, cur, S, settled: rows.filter(x => !x.pending) };
+}
+
+// The rest of a round with the planned 支數, starting from a round that has already played
+// `played0` draws and stands at `cum0` (0 / 0 = entering fresh at the next draw). Per step: cost,
+// payoff and the chance the tail first shows on that step, counted from now. p is the same every
+// draw (draws are independent), however long the tail has missed. ev only counts the bets still
+// to come, so money already spent in the round doesn't distort it.
+function entryPlan(k, maxSteps = 30, cum0 = 0, played0 = 0) {
+  const { price, payout, maxDraws, budget } = bet.settings;
+  const p = k / MAXN;
+  const L = maxDraws ? maxDraws - played0 : maxSteps;
+  const steps = [];
+  let cum = cum0, reach = 1, ev = 0, spent = 0;
+  for (let j = 1; j <= L; j++) {
+    const s = played0 + j;
+    const u = plannedUnits(cum, s - 1, k);
+    if (!u) break;
+    const cost = u * k * price;
+    if (budget && -cum + cost > budget) break;
+    const win = cum - cost + u * payout;
+    spent += cost;
+    ev += reach * p * (win - cum0);
+    steps.push({ s, j, units: u, cost, spent, win, pAt: reach * p, pBy: 1 - reach * (1 - p) });
+    cum -= cost;
+    reach *= 1 - p;
+  }
+  ev += reach * (cum - cum0);   // never hit within the plan: everything bet from now on is lost
+  return { steps, p, pFail: reach, finalCum: cum, ev, spent, capped: !maxDraws && !budget };
+}
+
+// If the tail keeps missing and every draw follows the suggestion, what does each next draw need?
+function projectMisses(cum, n, k, steps = 8) {
+  const { price, payout, maxDraws, budget } = bet.settings;
+  const out = [];
+  for (let s = 1; s <= steps; s++) {
+    const u = plannedUnits(cum, n, k);
+    if (!u) break;
+    const cost = u * k * price;
+    const stop = (maxDraws && n + 1 > maxDraws) || (budget && -cum + cost > budget);
+    out.push({ s, n: n + 1, units: u, cost, ifHit: cum - cost + u * payout, ifMiss: cum - cost, stop });
+    if (stop) break;
+    cum -= cost;
+    n++;
+  }
+  return out;
+}
+
+// ---------- 虛擬下注 ledger ----------
+const override = (r, i) => (r.rows[i] && typeof r.rows[i].units === 'number') ? r.rows[i].units : null;
+
+function setRowUnits(i, units) {
+  const r = bet.round;
+  while (r.rows.length <= i) r.rows.push(null);
+  r.rows[i] = units === null ? null : { units };
+}
+
+function evalLedger() {
+  const r = bet.round;
+  return runSession(drawsAfter(r.startDate), r.tail, (i, suggest) => {
+    const o = override(r, i);
+    return o !== null ? o : (bet.autoSuggest ? suggest || 0 : 0);
+  });
+}
+
+function renderBetSettings() {
+  const s = bet.settings;
+  for (const [id, key] of [['setPrice', 'price'], ['setPayout', 'payout'], ['setTarget', 'target'], ['simTarget', 'target'], ['setMaxDraws', 'maxDraws'], ['setBudget', 'budget'], ['setStartDraws', 'startDraws'], ['setStartUnits', 'startUnits']]) {
+    if (document.activeElement !== $(id)) $(id).value = s[key];
+  }
+  $('setSummary').textContent = `每份 ${money(s.price)}・中 1 支拿回 ${money(s.payout)}・目標 ${s.target ? money(s.target) : '回本'}` +
+    `${s.startDraws ? `・開頭 ${s.startDraws} 期各 ${s.startUnits} 支` : ''}` +
+    `${s.maxDraws ? `・最多追 ${s.maxDraws} 期` : ''}${s.budget ? `・本金上限 ${money(s.budget)}` : ''}${!s.maxDraws && !s.budget ? '・不設停損' : ''}`;
+  $('setInfo').innerHTML =
+    `1 支 = 整組每個號碼各一份：一般尾數 1 支 = 5 份 = <b>${money(s.price * 5)}</b> 元，中了拿回 ${money(s.payout)}、淨賺 <b>${money(s.payout - s.price * 5)}</b>；` +
+    `0 尾 1 支 = 4 份 = <b>${money(s.price * 4)}</b> 元，淨賺 <b>${money(s.payout - s.price * 4)}</b>。下 N 支就是花費和拿回都 × N。<br>` +
+    `${s.target ? `達標：中獎後本輪至少賺 ${money(s.target)} 元，建議支數會自動算到這個金額` : '回本：中獎後本輪累計 ≥ 0（目標獲利填 0 = 只要回本）'}。` +
+    `停損：${s.maxDraws ? `追滿 ${s.maxDraws} 期還沒回本` : ''}${s.maxDraws && s.budget ? '，或' : ''}` +
+    `${s.budget ? `下一期需要的金額會讓本輪投入超過 ${money(s.budget)} 元` : ''}${!s.maxDraws && !s.budget ? '不設停損' : '就認賠'}。` +
+    `${s.startDraws ? `<br>每輪開頭：前 ${s.startDraws} 期各下 ${s.startUnits} 支，第 ${s.startDraws + 1} 期起才自動算支數；開頭幾期就中的話，賺多少算多少（本輪 ≥ 0 就結束，標示「回本」）。` : ''}` +
+    `回本或停損後，下一期自動開新的一輪，從 0 重新計算。`;
+}
+
+function renderStartForm() {
+  const desc = allDrawsAsc().reverse();
+  const latest = desc[0];
+  return `
+    <h2>開始虛擬下注</h2>
+    <div class="form-row">選擇固定的尾數：</div>
+    <div class="tail-pick">${current.tails.map(t => `
+      <button data-act="pick" data-t="${t.num}" class="${bet.pickTail === t.num ? 'active' : ''}">
+        ${t.num} 尾<small>${t.last ? t.miss + ' 期未開' : ''}</small></button>`).join('')}
+    </div>
+    <div class="form-row">
+      <label><input type="radio" name="startMode" value="back" ${bet.pickMode === 'back' ? 'checked' : ''}>
+        推演：從前 <input id="startBack" type="number" min="1" value="${bet.pickBack}"> 期開始下注到現在</label>
+      <label><input type="radio" name="startMode" value="date" ${bet.pickMode === 'date' ? 'checked' : ''}>
+        從日期 <input id="startDateIn" type="date" max="${ymd(new Date())}" value="${bet.pickDate || ''}"> 那一期開始（例如你實際進場的日期）</label>
+      <label><input type="radio" name="startMode" value="next" ${bet.pickMode === 'next' ? 'checked' : ''}> 實戰：從下一期開始記錄</label>
+    </div>
+    <div class="actions"><button class="btn" data-act="start">開始（${bet.pickTail} 尾：${tailNums(bet.pickTail).map(pad).join(' ')}）</button></div>
+    <div class="note">最新一期是 ${latest ? latest.date + '（' + latest.period + '）' : '—'}。推演會用真實開獎結果逐期結算，沒填支數的期數自動照建議下，你可以改任何一期；實戰則在每期開獎後打開網頁自動對獎。</div>`;
+}
+
+function renderAdvice(ev) {
+  const { price, payout } = bet.settings;
+  const k = ev.k;
+  const p = ev.rows[ev.rows.length - 1];
+  const cum = p.before;
+  const m = p.suggest;
+  if (!m) return `<div class="advice">目前設定下，下 1 支中了也不會賺（中 1 支拿回 ≤ 1 支花費），請調整設定。</div>`;
+  const choices = [...new Set([Math.max(1, m - 1), m, m + 1, m + 2])];
+  const opt = mm => {
+    const cost = mm * k * price;
+    return `<tr${mm === m ? ' class="hl"' : ''}><td>${mm} 支${mm === m ? '（建議）' : ''}</td>
+      <td class="money">${money(cost)}</td><td class="money">${money(mm * payout)}</td>
+      <td>${signed(cum - cost + mm * payout)}</td><td>${signed(cum - cost)}</td></tr>`;
+  };
+  const goal = bet.settings.target ? `回本並獲利 ${money(bet.settings.target)}` : '回本';
+  const proj = projectMisses(cum, p.roundN - 1, k);
+  const projDates = upcomingDates(proj.length);
+  const projRows = proj.map(q => `<tr${q.stop ? ' class="hl"' : ''}>
+      <td>再 ${q.s} 期（本輪第 ${q.n} 期）</td><td>${dateCell(projDates[q.s - 1])}</td><td><b>${q.units}</b> 支</td><td class="money">${money(q.cost)}</td>
+      <td>${signed(q.ifHit)}</td><td>${signed(q.ifMiss)}</td>
+      <td>${q.stop ? '<span class="warn">超過停損，停止</span>' : ''}</td></tr>`).join('');
+  return `<div class="advice">
+    <h3>下一期（第 ${p.round} 輪第 ${p.roundN} 期）怎麼下才能${goal}？</h3>
+    <div>本輪目前 ${signed(cum)}。下 <b>${m}</b> 支（花 <b class="money">${money(m * k * price)}</b> 元），中了本輪累計 ${signed(cum - m * k * price + m * payout)}；沒中則變成 ${signed(cum - m * k * price)}。</div>
+    ${p.units && p.units !== m ? `<div>你這期下的是 <b>${p.units}</b> 支、花 <b class="money">${money(p.cost)}</b>：中了 ${signed(cum - p.cost + p.units * payout)}；沒中 ${signed(cum - p.cost)}${p.units < m ? `　<span class="warn">支數不足，中了也無法${goal}</span>` : ''}。</div>` : ''}
+    <table><thead><tr><th>下注</th><th>花費</th><th>中了拿回</th><th>中了本輪累計</th><th>沒中本輪累計</th></tr></thead>
+      <tbody>${choices.map(opt).join('')}</tbody></table>
+    <h3 style="margin-top: 14px">如果一直沒開，接下來每期要下多少（照建議下）</h3>
+    <table><thead><tr><th>期數</th><th>預估開獎日</th><th>${bet.settings.target ? `達到 +${money(bet.settings.target)} 需下` : '回本需下'}</th><th>當期花費</th><th>那期中了</th><th>那期又沒中</th><th></th></tr></thead>
+      <tbody>${projRows}</tbody></table>
+    <div class="note" style="margin: 6px 0 0">${datesNote()}</div>
+  </div>`;
+}
+
+function renderRound() {
+  const r = bet.round;
+  const ev = evalLedger();
+  const { S, cur, k } = ev;
+  const { price, payout, target } = bet.settings;
+  const nums = tailNums(r.tail);
+  const first = ev.settled[0];
+  const won = target ? '達標' : '回本';
+  const hasOverrides = r.rows.some(x => x && typeof x.units === 'number');
+
+  // What this draw would leave you at if the tail hits, given the 支數 placed on it.
+  const ifHit = x => {
+    if (!x.units) return '<span class="wd">未下注</span>';
+    const gain = x.units * payout - x.cost;
+    const totalBefore = x.pending ? x.total : x.total - x.net;
+    return `本輪 ${signed(x.before + gain)}<br><span class="wd">總累計 ${signed(totalBefore + gain)}</span>`;
+  };
+
+  let body = '';
+  for (const x of ev.rows) {
+    const o = override(r, x.i);
+    const need = x.suggest ? `<b>${x.suggest}</b> 支<br><span class="wd">${money(x.suggest * k * price)}</span>` : '—';
+    const input = `<input type="number" min="0" class="unit-in" data-row="${x.i}" value="${o === null ? '' : o}" placeholder="${bet.autoSuggest ? (x.suggest || 0) : 0}"> 支` +
+      (o === null && bet.autoSuggest ? '<br><span class="wd">照建議</span>' : '') +
+      (x.units && x.suggest && x.units < x.suggest ? `<br><span class="warn">不足以${won}</span>` : '');
+    const roundCell = `第 ${x.round} 輪<br><span class="wd">第 ${x.roundN} 期</span>`;
+    if (x.pending) {
+      body += `<tr class="pending"><td><b>下一期</b><br><span class="wd">預估 ${dateCell(upcomingDates(1)[0])}</span></td><td>${roundCell}</td><td>—</td>
+        <td>${need}</td><td>${input}</td><td class="money">${x.units ? money(x.cost) : ''}</td><td></td><td></td>
+        <td>${signed(x.before)}</td><td>${signed(x.total)}</td><td>${ifHit(x)}</td></tr>`;
+      continue;
+    }
+    const d = x.draw;
+    const status = x.back ? `中 ${x.units} 支` : x.tailHit ? `開出 ${r.tail} 尾（未下注）` : '';
+    body += `<tr class="${x.back ? 'hl' : ''}">
+      <td>${d.date} <span class="wd">(${weekday(d.date)})</span><br><span class="wd">${d.period}</span></td>
+      <td>${roundCell}</td>
+      <td>${ball(d.special)}<br><span class="wd">${status}</span></td>
+      <td>${need}</td><td>${input}</td>
+      <td class="money">${money(x.cost)}</td>
+      <td class="money">${x.back ? money(x.back) : ''}</td>
+      <td>${signed(x.net)}</td><td>${signed(x.roundCum)}</td><td>${signed(x.total)}</td><td>${ifHit(x)}</td></tr>`;
+    if (x.end) {
+      body += `<tr class="sep"><td colspan="11">${x.end === 'win'
+        ? `✔ 第 ${x.round} 輪${x.hitTarget ? won : '回本'}（追了 ${x.roundN} 期，本輪 ${signed(x.roundCum)}）`
+        : `✖ 第 ${x.round} 輪停損（${x.reason}，追了 ${x.roundN} 期，認賠 ${signed(x.roundCum)}）`}　→ 下一期開始第 ${x.round + 1} 輪，從 0 重新計算</td></tr>`;
+    }
+  }
+
+  return `
+    <h2>${r.tail} 尾（${nums.map(pad).join(' ')}）・ ${first ? `從 ${first.draw.date}（${first.draw.period}）開始，已結算 ${ev.settled.length} 期` : '從下一期開始'}</h2>
+    <div class="kpis">
+      <div>目前<b>第 ${cur.no} 輪・已追 ${cur.n} 期</b></div>
+      <div>本輪累計<b>${signed(cur.cum)}</b></div>
+      <div>總輸贏<b>${signed(S.total)}</b></div>
+      <div>${won} / 停損<b>${S.wins} 輪 / ${S.stops} 輪</b></div>
+      <div>停損虧損合計<b>${signed(S.stopLoss)}</b></div>
+      <div>最大單輪虧損<b>${signed(S.worstRound)}</b></div>
+      <div>單期最多下注<b class="money">${money(S.maxCost)}</b></div>
+      <div>總花費 / 總拿回<b class="money">${money(S.totalCost)} / ${money(S.totalBack)}</b></div>
+    </div>
+    <div class="actions">
+      <label class="find">每輪目標獲利 <input type="number" id="ledgerTarget" min="0" step="100" value="${target}"> 元
+        <span class="wd">（中了至少賺這麼多，0 = 只要回本）</span></label>
+      ${hasOverrides ? '<button class="btn" data-act="clearOverrides">清除手動支數，全部照建議推演</button>' : ''}
+    </div>
+    <div class="actions">
+      <label class="find"><input type="checkbox" id="autoSuggest" ${bet.autoSuggest ? 'checked' : ''}> 沒填支數的期數，自動照建議支數下注</label>
+      <button class="btn" data-act="archive">結束並存檔</button>
+      <button class="btn" data-act="discard">放棄（不存檔）</button>
+    </div>
+    <div class="table-scroll" style="max-height: 640px"><table>
+      <thead><tr><th>期別</th><th>輪次</th><th>特別號</th><th>${target ? `達到 +${money(target)}<br>需下` : '回本需下'}</th><th>實際下注</th><th>花費</th><th>拿回</th><th>本期</th><th>本輪累計</th><th>總累計</th><th>這期若中</th></tr></thead>
+      <tbody>${body}</tbody></table></div>
+    ${renderAdvice(ev)}`;
+}
+
+function renderArchive() {
+  if (!bet.archive.length) { $('archive').innerHTML = '<div class="note" style="margin:0">還沒有存檔的紀錄。</div>'; return; }
+  $('archive').innerHTML = `<div class="table-scroll" style="max-height: 360px"><table>
+    <thead><tr><th>尾數</th><th>期間</th><th>期數</th><th>回本 / 停損</th><th>停損虧損</th><th>最大單輪虧損</th><th>單期最多</th><th>總花費</th><th>總輸贏</th><th></th></tr></thead>
+    <tbody>${bet.archive.map((a, i) => `<tr>
+      <td><b>${a.tail} 尾</b></td><td>${a.start || '—'} ～ ${a.end || '—'}</td><td>${a.draws}</td>
+      <td>${a.wins} / ${a.stops}</td><td>${signed(a.stopLoss || 0)}</td><td>${signed(a.worstRound)}</td>
+      <td class="money">${money(a.maxCost)}</td><td class="money">${money(a.totalCost)}</td><td>${signed(a.net)}</td>
+      <td><button class="btn" data-act="delArchive" data-i="${i}">刪除</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderBet() {
+  if (!current.tails.length) return;
+  renderBetSettings();
+  // Keep the ledger's scroll position across re-renders so editing a row doesn't jump to the top.
+  const sc = $('roundCard').querySelector('.table-scroll');
+  const top = sc ? sc.scrollTop : 0;
+  $('roundCard').innerHTML = bet.round ? renderRound() : renderStartForm();
+  const sc2 = $('roundCard').querySelector('.table-scroll');
+  if (sc2) sc2.scrollTop = top;
+  renderArchive();
+  updateSimRange();
+}
+
+$('settingsCard').addEventListener('change', e => {
+  const key = { setPrice: 'price', setPayout: 'payout', setTarget: 'target', setMaxDraws: 'maxDraws', setBudget: 'budget',
+    setStartDraws: 'startDraws', setStartUnits: 'startUnits' }[e.target.id];
+  if (!key) return;
+  const min = key === 'price' || key === 'payout' || key === 'startUnits' ? 1 : 0;
+  bet.settings[key] = Math.max(min, Math.floor(Number(e.target.value) || 0));
+  saveBet();
+  renderBet();
+  if (sim.result) runSim();
+});
+
+// Recalculate as you type: re-render, then put the cursor back in the same box.
+$('viewBet').addEventListener('input', e => {
+  const t = e.target;
+  if (!t.classList.contains('unit-in')) return;
+  const i = Number(t.dataset.row);
+  setRowUnits(i, t.value === '' ? null : Math.max(0, Math.floor(Number(t.value) || 0)));
+  saveBet();
+  renderBet();
+  const again = $('roundCard').querySelector(`.unit-in[data-row="${i}"]`);
+  if (again) again.focus();
+});
+
+$('viewBet').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'autoSuggest') {
+    bet.autoSuggest = t.checked;
+  } else if (t.id === 'ledgerTarget') {
+    bet.settings.target = Math.max(0, Math.floor(Number(t.value) || 0));
+    if (sim.result) setTimeout(runSim);
+  } else if (t.name === 'startMode') {
+    bet.pickMode = t.value;
+  } else if (t.id === 'startBack') {
+    bet.pickBack = Math.max(1, Math.floor(Number(t.value) || 1));
+    bet.pickMode = 'back';
+  } else if (t.id === 'startDateIn') {
+    bet.pickDate = t.value;
+    bet.pickMode = 'date';
+  } else return;
+  saveBet();
+  renderBet();
+});
+
+$('viewBet').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'pick') bet.pickTail = Number(b.dataset.t);
+  else if (act === 'start') {
+    let startDate;
+    if (bet.pickMode === 'next') startDate = allDrawsAsc().reverse()[0].date;
+    else if (bet.pickMode === 'date') {
+      if (!bet.pickDate) { alert('請先選擇開始日期'); return; }
+      b.disabled = true;
+      b.textContent = '載入歷史資料中…';
+      const [y, m, dd] = bet.pickDate.split('-').map(Number);
+      await mapLimit(monthList(new Date(y, m - 1, 1)), 4, mm => fetchMonth(mm));
+      // Rounds start after startDate, so step back one day to include the chosen date's draw.
+      startDate = ymd(new Date(y, m - 1, dd - 1));
+    } else {
+      b.disabled = true;
+      b.textContent = '載入歷史資料中…';
+      await ensureDrawsBack(bet.pickBack);
+      startDate = startDateBack(bet.pickBack);
+    }
+    bet.round = { tail: bet.pickTail, startDate, rows: [] };
+  } else if (act === 'archive') {
+    const ev = evalLedger();
+    const last = ev.settled[ev.settled.length - 1];
+    bet.archive.unshift({
+      tail: bet.round.tail, start: ev.settled[0] && ev.settled[0].draw.date, end: last && last.draw.date,
+      draws: ev.settled.length, wins: ev.S.wins, stops: ev.S.stops, stopLoss: ev.S.stopLoss,
+      worstRound: ev.S.worstRound, maxCost: ev.S.maxCost, totalCost: ev.S.totalCost, net: ev.S.total,
+    });
+    bet.round = null;
+  } else if (act === 'clearOverrides') {
+    if (!confirm('清除所有手動填的支數，全部改回照建議推演？')) return;
+    bet.round.rows = [];
+    bet.autoSuggest = true;
+  } else if (act === 'discard') {
+    if (!confirm('確定放棄？紀錄不會存檔。')) return;
+    bet.round = null;
+  } else if (act === 'delArchive') bet.archive.splice(Number(b.dataset.i), 1);
+  saveBet();
+  renderBet();
+});
+
+// ---------- 模擬推演 ----------
+const sim = { result: null, sel: null, tab: 'overview', rank: { key: 'roi', dir: -1 }, rule: { mode: 'max', val: 50 } };
+const pct = v => v === null ? '—' : (v * 100).toFixed(1) + '%';
+const signedPct = v => `<span class="money ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%</span>`;
+
+// Per-tail ratios for the ranking: 報酬率 = 總輸贏 ÷ 總花費, 實際開出機率 vs 理論機率 (k/49), 達標率.
+function simMetrics(R) {
+  return R.tails.map(t => {
+    const k = tailNums(t.tail).length;
+    const hits = t.settled.filter(x => x.tailHit).length;
+    const done = t.S.wins + t.S.stops;
+    return {
+      tail: t.tail, k, hits, hitRate: hits / R.n, theo: k / MAXN,
+      totalCost: t.S.totalCost, totalBack: t.S.totalBack, total: t.S.total, roi: t.S.totalCost ? t.S.total / t.S.totalCost : 0,
+      wins: t.S.wins, done, winRate: done ? t.S.wins / done : null, maxDD: t.S.maxDD, maxCost: t.S.maxCost,
+    };
+  });
+}
+
+// Miss runs ("連續未開") of one tail inside the window. The run in progress when the window opens
+// is carried in from the earlier draws, so the first gap and "最長" aren't cut short.
+function droughtStats(draws, prior, tail) {
+  const isHit = d => d.special % 10 === tail;
+  let run = 0, runFrom = null, last = null;
+  for (let i = prior.length - 1; i >= 0; i--) {
+    if (isHit(prior[i])) { last = prior[i]; break; }
+    run++;
+    runFrom = prior[i].date;
+  }
+  let prevDate = prior.length ? prior[prior.length - 1].date : null;
+  const runs = [];
+  let longest = { len: 0, from: null, to: null, ongoing: false };
+  for (const d of draws) {
+    if (isHit(d)) {
+      runs.push({ len: run, from: runFrom, to: prevDate });
+      if (run > longest.len) longest = { len: run, from: runFrom, to: prevDate, ongoing: false };
+      run = 0;
+      runFrom = null;
+      last = d;
+    } else {
+      if (!run) runFrom = d.date;
+      run++;
+    }
+    prevDate = d.date;
+  }
+  if (run > longest.len) longest = { len: run, from: runFrom, to: null, ongoing: true };
+  const gaps = runs.map(r => r.len + 1).sort((a, b) => a - b);
+  return {
+    hits: runs.length, last, current: run, longest,
+    avgGap: gaps.length ? gaps.reduce((s, g) => s + g, 0) / gaps.length : null,
+    medianGap: gaps.length ? (gaps.length % 2 ? gaps[(gaps.length - 1) / 2] : (gaps[gaps.length / 2 - 1] + gaps[gaps.length / 2]) / 2) : null,
+    reached: runs.filter(r => r.len >= run).length,
+    dist: STREAK_BUCKETS.map(([a, b]) => runs.filter(r => r.len >= a && r.len <= b).length),
+  };
+}
+
+function renderDrought(R) {
+  const md = s => s ? s.slice(2).replace(/-/g, '/') : '';
+  const stateRows = R.tails.map(t => {
+    const D = t.drought, k = tailNums(t.tail).length, p = k / MAXN;
+    const within = K => pct(1 - Math.pow(1 - p, K));
+    return `<tr class="click" data-tail="${t.tail}"><td><b>${t.tail} 尾</b></td>
+      <td>${D.last ? `${D.last.date}（${weekday(D.last.date)}）<br><span class="wd">第 ${D.last.period} 期</span>` : '—'}</td>
+      <td>${D.last ? ball(D.last.special) : '—'}</td>
+      <td><b>${D.current} 期</b></td>
+      <td>${D.current ? `${D.reached} 次` : '—'}</td>
+      <td>${D.current ? pct(Math.pow(1 - p, D.current)) : '—'}</td>
+      <td>${pct(p)}</td><td>${within(10)}</td><td>${within(20)}</td></tr>`;
+  }).join('');
+  const histRows = R.tails.map(t => {
+    const D = t.drought, k = tailNums(t.tail).length;
+    const L = D.longest;
+    return `<tr class="click" data-tail="${t.tail}"><td><b>${t.tail} 尾</b></td><td>${D.hits} 次</td>
+      <td>${D.avgGap ? D.avgGap.toFixed(1) + ' 期' : '—'}</td><td class="muted">${(MAXN / k).toFixed(1)} 期</td>
+      <td>${D.medianGap ? D.medianGap + ' 期' : '—'}</td>
+      <td><b>${L.len} 期</b><br><span class="wd">${L.len ? `${md(L.from)} ～ ${L.ongoing ? '至今' : md(L.to)}` : ''}</span></td>
+      ${D.dist.map(c => `<td>${c || '<span class="wd">0</span>'}</td>`).join('')}</tr>`;
+  }).join('');
+  // Pool the 5-number tails (1～9 尾) so each 遺漏 bucket has enough samples to compare with 5/49.
+  const fives = R.tails.filter(t => t.tail !== 0);
+  const pool = STREAK_BUCKETS.map(() => ({ n: 0, hits: 0 }));
+  fives.forEach(t => t.S.cond.forEach((c, i) => { pool[i].n += c.n; pool[i].hits += c.hits; }));
+  const condRows = STREAK_BUCKETS.map(([a, b], i) => `<tr>
+      <td>開獎前已連續 ${a}${b === Infinity ? ' 期以上' : `～${b} 期`}沒開</td><td>${pool[i].n}</td><td>${pool[i].hits}</td>
+      <td><b>${pool[i].n ? pct(pool[i].hits / pool[i].n) : '—'}</b></td><td class="muted">${pct(5 / MAXN)}</td></tr>`).join('');
+  return `
+    <h2>遺漏分析（${R.from.date} ～ ${R.to.date}，共 ${R.n} 期）</h2>
+    <h3 style="font-size: 15px; margin: 4px 0 6px">目前狀態：最後開出日、已幾期沒開</h3>
+    <div class="table-scroll"><table>
+      <thead><tr><th>尾數</th><th>最後開出日</th><th>開出號碼</th><th>目前已幾期未開</th>
+        <th>期間內連續未開<br>達到這麼久的次數</th><th>理論上連續<br>這麼久沒開的機率</th>
+        <th>下一期開出</th><th>10 期內開出</th><th>20 期內開出</th></tr></thead>
+      <tbody>${stateRows}</tbody></table></div>
+    <details class="help"><summary>說明</summary><div>「理論上連續這麼久沒開的機率」=（1 − 每期機率）^ 未開期數，例如 1～9 尾連續 20 期沒開 ≈ 11.6%、30 期 ≈ 3.9%，代表這種情況不算罕見。
+      開出機率每期都一樣（1～9 尾 5/49 ≈ 10.2%、0 尾 4/49 ≈ 8.2%），「10 期內開出」= 1 −（1 − 機率）^10，不會因為已經很久沒開而變高。</div></details>
+
+    <h3 style="font-size: 15px; margin: 16px 0 6px">歷史間隔：平均幾期開一次、最長幾期沒開、連續未開的次數分布</h3>
+    <div class="table-scroll"><table>
+      <thead><tr><th rowspan="2">尾數</th><th rowspan="2">開出次數</th><th rowspan="2">實際平均<br>幾期開一次</th><th rowspan="2">理論平均</th>
+        <th rowspan="2">中位數<br>（一半在幾期內開）</th><th rowspan="2">最長連續未開</th><th colspan="6">每次開出前，已連續幾期沒開（次數）</th></tr>
+        <tr>${STREAK_BUCKETS.map(([a, b]) => `<th>${a}${b === Infinity ? '+' : `～${b}`}</th>`).join('')}</tr></thead>
+      <tbody>${histRows}</tbody></table></div>
+    <details class="help"><summary>說明</summary><div>「幾期開一次」是兩次開出之間相隔的期數（例如連開 = 1 期）。「最長連續未開」會把推演期間開始前就已累積的未開期數算進去，還沒結束的會標「至今」。點任一列可看該尾數明細。</div></details>
+    ${fives.length ? `
+    <h3 style="font-size: 15px; margin: 16px 0 6px">連續沒開越久，下一期比較容易開嗎？（${R.n} 期實際資料，1～9 尾合計）</h3>
+    <table>
+      <thead><tr><th>開獎前的狀態</th><th>出現幾次</th><th>那一期有開出</th><th>實際開出率</th><th>理論</th></tr></thead>
+      <tbody>${condRows}</tbody></table>
+    <details class="help"><summary>說明</summary><div>把每一期依「開獎前這個尾數已連續幾期沒開」分組，看那一期實際有沒有開出。
+      如果連續沒開真的會讓下一期比較容易開，越下面的列開出率應該越高；樣本次數少的列，數字會跳動得比較大。</div></details>` : ''}`;
+}
+
+function renderRanking(R) {
+  const M = simMetrics(R);
+  const { key, dir } = sim.rank;
+  const sorted = [...M].sort((a, b) => ((a[key] ?? -1) - (b[key] ?? -1)) * dir || b.total - a.total);
+  const best = (f, better) => M.reduce((p, c) => (better(f(c), f(p)) ? c : p));
+  const cheapest = best(m => m.totalCost, (a, b) => a < b);
+  const richest = best(m => m.total, (a, b) => a > b);
+  const topRoi = best(m => m.roi, (a, b) => a > b);
+  const th = (k, label) => `<th class="sortable" data-rk="${k}">${label}${k === key ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`;
+  const rows = sorted.map((m, i) => `<tr class="click${m.tail === topRoi.tail ? ' hl' : ''}" data-tail="${m.tail}">
+      <td>${i + 1}</td><td><b>${m.tail} 尾</b></td>
+      <td class="money">${money(m.totalCost)}</td><td class="money">${money(m.totalBack)}</td><td>${signed(m.total)}</td><td><b>${signedPct(m.roi)}</b></td>
+      <td>${m.hits} 次（${pct(m.hitRate)}）</td><td class="muted">${m.k}/49 ≈ ${pct(m.theo)}</td>
+      <td>${m.done ? `${pct(m.winRate)}（${m.wins}/${m.done}）` : '—'}</td>
+      <td>${signed(m.maxDD)}</td></tr>`).join('');
+  const sum = f => M.reduce((s, m) => s + f(m), 0);
+  const allCost = sum(m => m.totalCost), allBack = sum(m => m.totalBack), allNet = sum(m => m.total);
+  const totalRow = M.length < 2 ? '' : `<tr class="sep"><td></td><td><b>合計</b></td>
+      <td class="money"><b>${money(allCost)}</b></td><td class="money"><b>${money(allBack)}</b></td><td><b>${signed(allNet)}</b></td>
+      <td><b>${allCost ? signedPct(allNet / allCost) : '—'}</b></td><td colspan="4"><span class="wd">10 組同時照這個方式下注的合計</span></td></tr>`;
+  return `
+    <h2>每一組的總投資與獲利（${R.n} 期推演：${R.from.date} ～ ${R.to.date}）</h2>
+    <div class="kpis">
+      <div>投資成本最低<b>${cheapest.tail} 尾・${money(cheapest.totalCost)}</b></div>
+      <div>淨獲利最高<b>${richest.tail} 尾・${signed(richest.total)}</b></div>
+      <div>報酬率最高<b>${topRoi.tail} 尾・${signedPct(topRoi.roi)}</b></div>
+      ${M.length > 1 ? `<div>全部合計<b>投資 ${money(allCost)}・${signed(allNet)}</b></div>` : ''}
+    </div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>排名</th><th>尾數</th>${th('totalCost', '總投資')}${th('totalBack', '總拿回')}${th('total', '淨獲利')}${th('roi', '報酬率')}
+        ${th('hitRate', '實際開出（機率）')}<th>理論機率</th>${th('winRate', '達標率')}${th('maxDD', '最大資金回撤')}</tr></thead>
+      <tbody>${rows}${totalRow}</tbody></table></div>
+    <details class="help"><summary>說明</summary><div>總投資 = 這段期間每一期下注金額加總；總拿回 = 中獎拿回的金額加總；淨獲利 = 總拿回 − 總投資（還在追、沒結束的那一輪，已花的錢也算在總投資裡）。報酬率 = 淨獲利 ÷ 總投資。實際開出 = 這段期間特別號開出該尾數的次數與比例；理論機率是每期開出的機率（1～9 尾各 5 個號碼 = 5/49，0 尾 4 個號碼 = 4/49）。
+      達標率 = 已結束的輪次中，達標結束的比例。每期開獎互相獨立，過去開得多的尾數，下一期並不會比較容易開；換一段期間，排名通常就會變。</div></details>`;
+}
+
+// Per-round cost profile: every hit resets the round, so each won round is one "investment until a
+// hit". Shows how much a round typically costs, the cheapest / priciest, and how long it ran.
+function renderRoundCosts(R) {
+  const stat = list => {
+    if (!list.length) return null;
+    const costs = list.map(r => r.cost).sort((a, b) => a - b);
+    const ns = list.map(r => r.n);
+    const mid = costs.length % 2 ? costs[(costs.length - 1) / 2] : (costs[costs.length / 2 - 1] + costs[costs.length / 2]) / 2;
+    return {
+      count: list.length, avg: costs.reduce((s, c) => s + c, 0) / costs.length, median: mid,
+      min: costs[0], max: costs[costs.length - 1],
+      avgN: ns.reduce((s, n) => s + n, 0) / ns.length, minN: Math.min(...ns), maxN: Math.max(...ns),
+      avgNet: list.reduce((s, r) => s + r.net, 0) / list.length,
+      minRound: list.find(r => r.cost === costs[0]), maxRound: list.find(r => r.cost === costs[costs.length - 1]),
+    };
+  };
+  const md = s => s ? s.slice(5) : '';
+  const rowFor = (label, rounds, total, cls = '', attrs = '') => {
+    const won = rounds.filter(r => r.result === 'win');
+    const stops = rounds.filter(r => r.result === 'stop');
+    const open = rounds.find(r => r.result === 'open');
+    const W = stat(won);
+    return `<tr class="${cls}" ${attrs}><td><b>${label}</b></td>
+      <td><b>${won.length}</b> 次</td>
+      <td class="money">${W ? money(W.avg) : '—'}</td>
+      <td class="money">${W ? money(W.median) : '—'}</td>
+      <td class="money">${W ? `${money(W.min)}${W.minRound && cls !== 'sep' ? `<br><span class="wd">${md(W.minRound.end)} 中，追 ${W.minRound.n} 期</span>` : ''}` : '—'}</td>
+      <td class="money">${W ? `${money(W.max)}${W.maxRound && cls !== 'sep' ? `<br><span class="wd">${md(W.maxRound.end)} 中，追 ${W.maxRound.n} 期</span>` : ''}` : '—'}</td>
+      <td>${W ? `${W.avgN.toFixed(1)} 期<br><span class="wd">${W.minN}～${W.maxN} 期</span>` : '—'}</td>
+      <td>${W ? signed(W.avgNet) : '—'}</td>
+      <td>${stops.length ? `${stops.length} 次<br>${signed(stops.reduce((s, r) => s + r.net, 0))}` : '0'}</td>
+      <td>${open ? `已投入 ${money(open.cost)}<br><span class="wd">追 ${open.n} 期，${signed(open.net)}</span>` : '—'}</td>
+      <td><b>${signed(total)}</b></td></tr>`;
+  };
+  const rows = R.tails.map(t => rowFor(`${t.tail} 尾`, t.rounds, t.S.total, 'click', `data-tail="${t.tail}"`)).join('');
+  const allRounds = R.tails.flatMap(t => t.rounds);
+  const totalRow = R.tails.length > 1 ? rowFor('全部合計', allRounds, R.tails.reduce((s, t) => s + t.S.total, 0), 'sep') : '';
+  return `
+    <h2>每輪成本分析（中了就重置，一直算到 ${R.to.date}）</h2>
+    <div class="table-scroll" style="max-height: none"><table>
+      <thead><tr><th rowspan="2">尾數</th><th rowspan="2">中獎次數</th><th colspan="4">每次「從開始下注到中獎」的投入成本</th>
+        <th rowspan="2">平均追幾期<br>（最短～最長）</th><th rowspan="2">平均每輪淨賺</th><th rowspan="2">停損</th><th rowspan="2">目前還沒中的那輪</th><th rowspan="2">總淨獲利</th></tr>
+        <tr><th>平均</th><th>中位數</th><th>最低</th><th>最高</th></tr></thead>
+      <tbody>${rows}${totalRow}</tbody></table></div>
+    <details class="help"><summary>說明</summary><div>一輪 = 從開始下注到中獎（或停損）為止，中獎後下一期從 0 重新開始。「投入成本」是這一輪所有期數的下注金額加總；
+      平均看的是一般情況，中位數代表一半的輪次低於這個金額，「最高」才是真正要準備的錢。總淨獲利 = 所有已中獎輪次的淨賺 + 停損虧損 + 目前還沒中那輪已花掉的錢。</div></details>`;
+}
+
+const simMode = () => document.querySelector('input[name=simStartMode]:checked').value;
+
+// One tail through the simulation window with the run's strategy and a given entry threshold.
+function runTailWith(R, tail, entryMiss) {
+  const k = tailNums(tail).length;
+  let initStreak = 0;
+  for (let i = R.prior.length - 1; i >= 0 && R.prior[i].special % 10 !== tail; i--) initStreak++;
+  const opts = { entryMiss, initStreak };
+  return R.strategy === 'fixed'
+    ? runSession(R.draws, tail, () => R.fixed, () => R.fixed, opts)
+    : runSession(R.draws, tail, (i, s) => s || 0, (cum, played) => plannedUnits(cum, played, k) || 0, opts);
+}
+
+// 進場門檻 for a tail under the chosen rule.
+const RULE_LABEL = { max: '歷史最長連續未開的 X%', avg: '平均間隔的 X 倍', fixed: '固定 X 期' };
+function ruleThreshold(t, rule) {
+  const D = t.drought, k = tailNums(t.tail).length;
+  if (rule.mode === 'max') return Math.max(1, Math.round(D.longest.len * rule.val / 100));
+  if (rule.mode === 'avg') return Math.max(1, Math.round((D.avgGap || MAXN / k) * rule.val));
+  return Math.max(0, Math.round(rule.val));
+}
+
+const ENTRY_LEVELS = [0, 5, 10, 15, 20, 25, 30];
+
+function renderTiming(R) {
+  const rule = sim.rule;
+  // 1) Same rule for every tail at a range of fixed thresholds, summed over the tails in the run.
+  const levels = ENTRY_LEVELS.map(lv => {
+    const runs = R.tails.map(t => runTailWith(R, t.tail, lv));
+    const sum = f => runs.reduce((s, r) => s + f(r), 0);
+    const cost = sum(r => r.S.totalCost);
+    return {
+      lv, rounds: sum(r => r.rounds.length), wins: sum(r => r.S.wins), stops: sum(r => r.S.stops),
+      cost, total: sum(r => r.S.total), roi: cost ? sum(r => r.S.total) / cost : 0,
+      worst: Math.min(...runs.map(r => r.S.worstRound)), maxCost: Math.max(...runs.map(r => r.S.maxCost)),
+      maxDD: Math.min(...runs.map(r => r.S.maxDD)),
+    };
+  });
+  const bestLv = levels.filter(l => l.cost).reduce((p, c) => (c.roi > p.roi ? c : p), levels.find(l => l.cost) || levels[0]);
+  const levelRows = levels.map(l => `<tr class="${l.lv === bestLv.lv ? 'hl' : ''}">
+      <td><b>${l.lv ? `連續未開滿 ${l.lv} 期才進場` : '立刻進場（不等）'}</b>${l.lv === bestLv.lv ? '　<span class="warn">報酬率最高</span>' : ''}</td>
+      <td>${l.rounds}</td><td>${l.wins} / ${l.stops}</td><td class="money">${money(l.cost)}</td><td>${signed(l.total)}</td>
+      <td><b>${l.cost ? signedPct(l.roi) : '—'}</b></td><td>${signed(l.worst)}</td><td class="money">${money(l.maxCost)}</td><td>${signed(l.maxDD)}</td></tr>`).join('');
+
+  // 2) Which tails are past their own threshold right now, plus how that rule did historically.
+  const cands = R.tails.map(t => {
+    const thr = ruleThreshold(t, rule);
+    const res = runTailWith(R, t.tail, thr);
+    return { t, thr, cur: t.drought.current, ready: t.drought.current >= thr, res };
+  }).sort((a, b) => (b.ready - a.ready) || ((b.cur - b.thr) - (a.cur - a.thr)));
+  const candRows = cands.map(c => {
+    const S = c.res.S, done = S.wins + S.stops;
+    return `<tr class="click${c.ready ? ' hl' : ''}" data-tail="${c.t.tail}">
+      <td><b>${c.t.tail} 尾</b></td><td>${c.t.drought.last ? c.t.drought.last.date : '—'}</td>
+      <td><b>${c.cur} 期</b></td><td>${c.t.drought.longest.len} 期</td><td>${c.t.drought.avgGap ? c.t.drought.avgGap.toFixed(1) : '—'} 期</td>
+      <td>${c.thr} 期</td>
+      <td>${c.ready ? `<b>✅ 可以進場</b><br><span class="wd">已超過門檻 ${c.cur - c.thr} 期</span>` : `還差 ${c.thr - c.cur} 期`}</td>
+      <td>${c.res.rounds.length}</td><td>${done ? `${S.wins} / ${S.stops}` : '—'}</td>
+      <td>${S.totalCost ? signedPct(S.total / S.totalCost) : '—'}</td><td>${signed(S.total)}</td><td>${signed(S.maxDD)}</td></tr>`;
+  }).join('');
+  const readyList = cands.filter(c => c.ready).map(c => `${c.t.tail} 尾（已 ${c.cur} 期）`).join('、');
+
+  return `
+    <h2>進場時機篩選</h2>
+    <h3 style="font-size: 15px; margin: 4px 0 6px">① 等幾期再進場比較好？（${R.n} 期回測，${R.tails.length > 1 ? `${R.tails.length} 組合計` : `${R.tails[0].tail} 尾`}）</h3>
+    <div class="table-scroll"><table>
+      <thead><tr><th>進場方式</th><th>進場輪數</th><th>達標 / 停損</th><th>總花費</th><th>總輸贏</th><th>報酬率</th><th>最大單輪虧損</th><th>單期最多下注</th><th>最大資金回撤</th></tr></thead>
+      <tbody>${levelRows}</tbody></table></div>
+
+    <h3 style="font-size: 15px; margin: 16px 0 6px">② 目前可以進場的尾數</h3>
+    <div class="form-row">
+      <label>進場門檻 = <select id="ruleMode">
+        ${Object.entries(RULE_LABEL).map(([k, v]) => `<option value="${k}" ${rule.mode === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label>X = <input id="ruleVal" type="number" min="0" step="${rule.mode === 'avg' ? 0.5 : rule.mode === 'max' ? 10 : 1}" value="${rule.val}"></label>
+    </div>
+    <div style="margin: 8px 0; font-size: 14px">${readyList ? `目前已達門檻：<b>${readyList}</b>` : '目前沒有尾數達到門檻。'}</div>
+    <div class="table-scroll"><table>
+      <thead><tr><th rowspan="2">尾數</th><th rowspan="2">最後開出日</th><th rowspan="2">目前未開</th><th rowspan="2">歷史最長</th><th rowspan="2">平均間隔</th>
+        <th rowspan="2">進場門檻</th><th rowspan="2">狀態</th><th colspan="5">過去照這個門檻進場的回測</th></tr>
+        <tr><th>進場輪數</th><th>達標 / 停損</th><th>報酬率</th><th>總輸贏</th><th>最大資金回撤</th></tr></thead>
+      <tbody>${candRows}</tbody></table></div>
+    <details class="help"><summary>說明</summary><div>回測沿用目前的下注設定（目標獲利、開頭支數、停損）。「歷史最長」與「平均間隔」是用這 ${R.n} 期算出來的，再拿同一段期間回測，會比實際情況樂觀（事先並不知道最長會是幾期）。
+      等越久才進場，進場次數越少、樣本越小，報酬率的偶然性越大；而且每一期開出的機率不會因為等待而提高，等待只是減少下注次數，不會讓每一注變得比較划算。換一段期間或改用更多期數再比較一次，排名若差很多，就代表主要是運氣。</div></details>`;
+}
+
+// Live "從哪一天開始、共幾期" line under the controls, from whatever is loaded so far.
+function updateSimRange() {
+  const all = allDrawsAsc();
+  if (!all.length) return;
+  const latest = all[all.length - 1];
+  let html;
+  if (simMode() === 'back') {
+    const n = Math.max(1, Math.floor(Number($('simBack').value) || 1));
+    const first = all[all.length - n];
+    html = first
+      ? `推演範圍：從 <b>${first.date}（${weekday(first.date)}）第 ${first.period} 期</b> 到 <b>${latest.date} 第 ${latest.period} 期</b>，共 <b>${n}</b> 期`
+      : `推演範圍：前 <b>${n}</b> 期到 ${latest.date}（目前只載入 ${all.length} 期，按「開始模擬」時會自動往前載入）`;
+  } else {
+    const ds = $('simDate').value;
+    if (!ds) html = '請選擇開始日期';
+    else if (ds < all[0].date) html = `推演範圍：從 <b>${ds}</b> 到 <b>${latest.date}</b>（較早的資料按「開始模擬」時會自動載入）`;
+    else {
+      const list = all.filter(d => d.date >= ds);
+      html = list.length
+        ? `推演範圍：從 <b>${list[0].date}（${weekday(list[0].date)}）第 ${list[0].period} 期</b> 到 <b>${latest.date} 第 ${latest.period} 期</b>，共 <b>${list.length}</b> 期`
+        : '這個日期之後還沒有開獎資料';
+    }
+  }
+  $('simRange').innerHTML = html;
+}
+
+async function runSim() {
+  const strategy = $('simStrategy').value;
+  const fixed = Math.max(1, Math.floor(Number($('simFixed').value) || 1));
+  let n = Math.max(1, Math.floor(Number($('simBack').value) || 1));
+  $('simRun').disabled = true;
+  $('simStatus').textContent = '載入歷史資料中…';
+  try {
+    if (simMode() === 'date') {
+      const ds = $('simDate').value;
+      if (!ds) { $('simStatus').textContent = '請先選擇開始日期。'; $('simRun').disabled = false; return; }
+      const [y, m] = ds.split('-').map(Number);
+      await mapLimit(monthList(new Date(y, m - 1, 1)), 4, mm => fetchMonth(mm));
+      n = allDrawsAsc().filter(d => d.date >= ds).length;
+      if (!n) { $('simStatus').textContent = '這個日期之後還沒有開獎資料。'; $('simRun').disabled = false; return; }
+      $('simBack').value = n;
+    }
+    // Extra history before the window so the starting miss streak of each tail is known.
+    await ensureDrawsBack(n + 150, got => { $('simStatus').textContent = `載入歷史資料中…（已有 ${got} 期）`; });
+    updateSimRange();
+  } catch (e) {
+    $('simStatus').textContent = '⚠ 歷史資料載入失敗：' + e.message;
+    $('simRun').disabled = false;
+    return;
+  }
+  const all = allDrawsAsc();
+  const draws = all.slice(-n);
+  const prior = all.slice(0, all.length - draws.length);
+  const entryMiss = Math.max(0, Math.floor(Number($('simEntry').value) || 0));
+  const pick = $('simTail').value;
+  const R = { n: draws.length, from: draws[0], to: draws[draws.length - 1], strategy, fixed, entryMiss, draws, prior, tails: [] };
+  for (const t of pick === 'all' ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : [Number(pick)]) {
+    R.tails.push(Object.assign({ tail: t, drought: droughtStats(draws, prior, t) }, runTailWith(R, t, entryMiss)));
+  }
+  sim.result = R;
+  const tails = R.tails;
+  // A single tail opens its detail right away; with all tails keep the previous pick if any.
+  if (tails.length === 1) sim.sel = tails[0].tail;
+  else if (!tails.some(t => t.tail === sim.sel)) sim.sel = null;
+  $('simStatus').textContent = draws.length < n ? `只取得 ${draws.length} 期資料，以此推演。` : '';
+  $('simRun').disabled = false;
+  renderSim();
+}
+
+const help = (html, label = '說明') => `<details class="help"><summary>${label}</summary><div>${html}</div></details>`;
+
+const SIM_TABS = [['overview', '總覽'], ['drought', '遺漏分析'], ['timing', '進場時機'], ['invest', '投資與獲利'], ['rounds', '每輪成本'], ['detail', '尾數明細']];
+
+function simHow(R) {
+  const target = bet.settings.target;
+  return (R.strategy === 'fixed' ? `每期固定下 ${R.fixed} 支`
+    : target ? `自動算支數・中了本輪至少賺 ${money(target)}` : '自動算支數・剛好回本') +
+    (bet.settings.startDraws && R.strategy !== 'fixed' ? `・每輪前 ${bet.settings.startDraws} 期各 ${bet.settings.startUnits} 支` : '') +
+    (R.entryMiss ? `・連續未開滿 ${R.entryMiss} 期才進場` : '') +
+    (bet.settings.maxDraws ? `・最多追 ${bet.settings.maxDraws} 期` : '') +
+    (bet.settings.budget ? `・本金上限 ${money(bet.settings.budget)}` : '') +
+    (!bet.settings.maxDraws && !bet.settings.budget ? '・不設停損' : '');
+}
+
+function renderSim() {
+  const R = sim.result;
+  if (!R) return;
+  const bar = SIM_TABS.map(([k, label]) => `<button data-simtab="${k}" class="${k === sim.tab ? 'active' : ''}">${
+    k === 'detail' && sim.sel !== null ? `${sim.sel} 尾明細` : label}</button>`).join('');
+  const body = {
+    overview: renderOverview, drought: renderDrought, timing: renderTiming, invest: renderRanking, rounds: renderRoundCosts,
+    detail: () => '<div id="simDetailPane"></div>',
+  }[sim.tab](R);
+  $('simResult').hidden = false;
+  $('simResult').innerHTML = `
+    <div class="card-head"><h2>推演結果</h2><span class="sub">${R.from.date} ～ ${R.to.date}・共 ${R.n} 期・${simHow(R)}</span></div>
+    <div class="subtabs">${bar}</div>
+    <div class="pane">${body}</div>`;
+  if (sim.tab === 'detail') renderSimDetail();
+}
+
+function renderOverview(R) {
+  const target = bet.settings.target;
+  const won = target ? '達標' : '回本';
+  const sum = (f) => R.tails.reduce((s, t) => s + f(t), 0);
+  const cost = sum(t => t.S.totalCost), back = sum(t => t.S.totalBack), net = sum(t => t.S.total);
+  const allRounds = R.tails.flatMap(t => t.rounds);
+  const maxRound = allRounds.reduce((p, r) => (r.cost > (p ? p.cost : -1) ? r : p), null);
+  const ready = R.tails.filter(t => t.drought.current >= ruleThreshold(t, sim.rule));
+  const kpis = `
+    <div class="kpis">
+      <div>總投資<b class="money">${money(cost)}</b></div>
+      <div>總拿回<b class="money">${money(back)}</b></div>
+      <div>淨獲利<b>${signed(net)}</b></div>
+      <div>報酬率<b>${cost ? signedPct(net / cost) : '—'}</b></div>
+      <div>${won} / 停損<b>${sum(t => t.S.wins)} 次 / ${sum(t => t.S.stops)} 次</b></div>
+      <div>最高單輪投入<b class="money">${maxRound ? money(maxRound.cost) : '—'}</b></div>
+      <div>單期最多下注<b class="money">${money(Math.max(0, ...R.tails.map(t => t.S.maxCost)))}</b></div>
+      <div>目前可進場（${sim.rule.mode === 'max' ? `最長的 ${sim.rule.val}%` : sim.rule.mode === 'avg' ? `平均 × ${sim.rule.val}` : `滿 ${sim.rule.val} 期`}）<b>${ready.length ? ready.map(t => `${t.tail} 尾`).join('、') : '無'}</b></div>
+    </div>`;
+  const rows = R.tails.map(t => {
+    const open = t.rounds.find(x => x.result === 'open');
+    return `<tr class="click${sim.sel === t.tail ? ' hl' : ''}" data-tail="${t.tail}">
+      <td><b>${t.tail} 尾</b></td><td>${t.rounds.length}</td><td>${t.S.wins}</td><td>${t.S.stops}</td>
+      <td>${open ? `追了 ${open.n} 期，${signed(open.net)}`
+        : R.entryMiss && t.S.endStreak >= R.entryMiss ? `<b>下一期進場</b><br><span class="wd">已 ${t.S.endStreak} 期未開</span>`
+        : R.entryMiss ? `<span class="wd">等待中（已 ${t.S.endStreak} 期未開）</span>` : '—'}</td>
+      <td>${t.S.longest} 期</td><td class="money">${money(t.S.maxCost)}</td>
+      <td>${signed(t.S.worstRound)}</td><td>${signed(t.S.stopLoss)}</td><td>${signed(t.S.maxDD)}</td>
+      <td class="money">${money(t.S.totalCost)}</td><td>${signed(t.S.total)}</td></tr>`;
+  }).join('');
+  return `${kpis}
+    <h3 style="margin-top: 0">各尾數結果 <span class="wd">點任一列看該尾數明細</span></h3>
+    <div class="table-scroll"><table>
+      <thead><tr><th>尾數</th><th>輪數</th><th>${won}</th><th>停損</th><th>目前這輪</th><th>最長追</th><th>單期最多下注</th>
+        <th>最大單輪虧損</th><th>停損虧損合計</th><th>最大資金回撤</th><th>總投資</th><th>淨獲利</th></tr></thead>
+      <tbody>${rows}
+        ${R.tails.length < 2 ? '' : `<tr class="sep"><td><b>合計</b></td><td>${sum(t => t.rounds.length)}</td><td>${sum(t => t.S.wins)}</td><td>${sum(t => t.S.stops)}</td>
+          <td></td><td>${Math.max(...R.tails.map(t => t.S.longest))} 期</td><td class="money">${money(Math.max(...R.tails.map(t => t.S.maxCost)))}</td>
+          <td>${signed(Math.min(...R.tails.map(t => t.S.worstRound)))}</td><td>${signed(sum(t => t.S.stopLoss))}</td><td></td>
+          <td class="money">${money(sum(t => t.S.totalCost))}</td><td>${signed(sum(t => t.S.total))}</td></tr>`}
+      </tbody></table></div>
+    ${help('「最大資金回撤」= 總累計輸贏從最高點往下掉最多的金額，也就是過程中最多需要準備的錢。「目前這輪」是推演結束時還沒中、仍在追的那一輪。其他分頁：遺漏分析（每組多久沒開）、進場時機（等幾期再進場）、投資與獲利（排名）、每輪成本（每次中獎前投入多少）。')}`;
+}
+
+function renderSimDetail() {
+  const R = sim.result;
+  const t = R && sim.sel !== null ? R.tails.find(x => x.tail === sim.sel) : null;
+  const pane = $('simDetailPane');
+  if (!pane) return;
+  if (!t) { pane.innerHTML = '<div class="empty">請在「總覽」或其他分頁的表格點選一個尾數，這裡會顯示它的明細、接下來的推演與輸贏走勢。</div>'; return; }
+  const pts = t.settled.map(x => ({ date: x.draw.date, total: x.total, round: x.round, roundCum: x.roundCum, units: x.units, hit: !!x.back, idle: !!x.idle, streak: x.streak }));
+  // If the simulation ends mid-round (e.g. you entered on a chosen date and the tail hasn't come
+  // back yet), continue that round: its drawn rows first, then the projection from where it stands.
+  const open = t.rounds.find(r => r.result === 'open');
+  const openRows = open ? t.settled.filter(x => !x.idle && x.round === open.no) : [];
+  const cum0 = open ? open.net : 0, played0 = open ? open.n : 0;
+  const plan = entryPlan(t.k, 30, cum0, played0);
+  const planDates = upcomingDates(plan.steps.length);
+  let paid = 0;
+  const pastRows = openRows.map(x => {
+    paid += x.cost;
+    return `<tr class="past">
+      <td>進場第 ${x.roundN} 期</td><td>${dateCell(x.draw.date)} <span class="wd">已開獎</span></td><td>${x.units} 支</td>
+      <td class="money">${money(x.cost)}</td><td class="money">${money(paid)}</td>
+      <td>開出 ${ball(x.draw.special)} ${x.back ? `中，本輪 ${signed(x.roundCum)}` : `沒中，本輪 ${signed(x.roundCum)}`}</td>
+      <td colspan="2"><span class="wd">已開獎</span></td></tr>`;
+  }).join('');
+  const futureRows = plan.steps.map(q => `<tr>
+      <td>進場第 ${q.s} 期</td><td>${dateCell(planDates[q.j - 1])} <span class="wd">預估</span></td><td>${q.units} 支</td>
+      <td class="money">${money(q.cost)}</td><td class="money">${money(paid + q.spent)}</td>
+      <td>中了本輪 ${signed(q.win)}</td><td>${pct(q.pAt)}</td><td>${pct(q.pBy)}</td></tr>`).join('');
+  const how = `${bet.settings.startDraws ? `每輪前 ${bet.settings.startDraws} 期各下 ${bet.settings.startUnits} 支，之後` : ''}以自動算支數${bet.settings.target ? `、中了至少賺 ${money(bet.settings.target)}` : '、剛好回本'}計算`;
+  const limit = plan.capped ? '（沒設停損，這裡假設最多再追 30 期）' : '（依停損設定）';
+  const planBox = `
+    <div class="advice">
+      <h3>${open
+        ? `${t.tail} 尾：本輪從 ${open.start} 進場，已追 ${open.n} 期，本輪目前 ${signed(open.net)}；接下來的推演`
+        : `如果從下一期進場（${t.tail} 尾目前已連續 ${t.S.endStreak} 期沒開）`}</h3>
+      ${plan.steps.length ? `
+      <div>${how}，接下來最多再追 ${plan.steps.length} 期${limit}：</div>
+      <div>・這段期間內開出（${bet.settings.target ? '達標' : '回本'}）的機率 <b>${pct(1 - plan.pFail)}</b>；一直沒開的機率 <b>${pct(plan.pFail)}</b>，那時本輪會是 ${signed(plan.finalCum)}</div>
+      <div>・接下來這些下注，平均下來的期望值是 <b>${signed(plan.ev)}</b> 元（把所有可能結果依機率加權平均；已經花掉的錢不算在內）</div>`
+      : `<div><span class="warn">已達停損條件，不再往下追。</span></div>`}
+      <div class="note" style="margin: 4px 0 0">機率不會因為已經 ${t.S.endStreak} 期沒開而提高，每一期都是 ${pct(plan.p)}；機率欄是從現在起算。</div>
+      <div class="table-scroll" style="max-height: 420px; margin-top: 8px"><table>
+        <thead><tr><th>期數</th><th>開獎日</th><th>要下</th><th>當期花費</th><th>本輪累計投入</th><th>結果 / 這期中了</th><th>剛好這期開出的機率</th><th>到這期為止開出的機率</th></tr></thead>
+        <tbody>${pastRows}${futureRows}</tbody></table></div>
+      <div class="note" style="margin: 6px 0 0">「已開獎」是實際開獎日期與結果。${datesNote()}</div>
+    </div>`;
+  const rounds = [...t.rounds].reverse().map(x => `<tr>
+      <td>第 ${x.no} 輪</td><td>${x.start}</td><td>${x.end || '（進行中）'}</td><td>${x.n}</td>
+      <td>${x.result === 'win' ? (bet.settings.target && x.net >= bet.settings.target ? '✔ 達標' : '✔ 回本') : x.result === 'stop' ? `✖ 停損<br><span class="wd">${x.reason}</span>` : '進行中'}</td>
+      <td class="money">${money(x.maxCost)}</td><td>${signed(x.minCum)}</td><td>${signed(x.net)}</td></tr>`).join('');
+  pane.innerHTML = `
+    <h2>${t.tail} 尾明細（${tailNums(t.tail).map(pad).join(' ')}）</h2>
+    <div class="kpis">
+      <div>總輸贏<b>${signed(t.S.total)}</b></div>
+      <div>${bet.settings.target ? '達標' : '回本'} / 停損<b>${t.S.wins} 輪 / ${t.S.stops} 輪</b></div>
+      <div>停損虧損合計<b>${signed(t.S.stopLoss)}</b></div>
+      <div>最大單輪虧損<b>${signed(t.S.worstRound)}</b></div>
+      <div>最大資金回撤<b>${signed(t.S.maxDD)}</b></div>
+      <div>單期最多下注<b class="money">${money(t.S.maxCost)}</b></div>
+    </div>
+    ${planBox}
+    <h3 style="font-size: 14px; margin: 16px 0 6px">推演期間的總累計輸贏走勢</h3>
+    <div class="eq-chart" id="eqChart"></div>
+    <div class="actions"><button class="btn" id="simToLedger">把這個尾數放到「虛擬下注」逐期查看</button></div>
+    <div class="table-scroll" style="max-height: 420px"><table>
+      <thead><tr><th>輪次</th><th>開始</th><th>結束</th><th>追了幾期</th><th>結果</th><th>單期最多下注</th><th>本輪最大虧損</th><th>本輪輸贏</th></tr></thead>
+      <tbody>${rounds}</tbody></table></div>`;
+  drawEquity($('eqChart'), pts);
+}
+
+function drawEquity(el, pts) {
+  if (!pts.length) { el.innerHTML = ''; return; }
+  const W = 980, H = 260, ml = 74, mr = 12, mt = 14, mb = 26;
+  const pw = W - ml - mr, ph = H - mt - mb;
+  let lo = Math.min(0, ...pts.map(p => p.total)), hi = Math.max(0, ...pts.map(p => p.total));
+  if (hi === lo) hi = lo + 1;
+  const step = niceStep(hi - lo);
+  lo = Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  const x = i => ml + (pts.length < 2 ? pw / 2 : i / (pts.length - 1) * pw);
+  const y = v => mt + (hi - v) / (hi - lo) * ph;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="總累計輸贏走勢">`;
+  for (let v = lo; v <= hi + step / 2; v += step) {
+    s += `<line class="gridline" x1="${ml}" x2="${W - mr}" y1="${y(v)}" y2="${y(v)}"/>`;
+    s += `<text x="${ml - 6}" y="${y(v) + 4}" text-anchor="end">${money(v)}</text>`;
+  }
+  s += `<line class="zero" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/>`;
+  s += `<path class="line" d="${pts.map((p, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(p.total).toFixed(1)).join('')}"/>`;
+  [0, Math.floor((pts.length - 1) / 2), pts.length - 1].forEach((i, j) => {
+    s += `<text x="${x(i)}" y="${H - 8}" text-anchor="${['start', 'middle', 'end'][j]}">${pts[i].date}</text>`;
+  });
+  s += `<line class="cross" x1="0" x2="0" y1="${mt}" y2="${mt + ph}" visibility="hidden"/>`;
+  s += `<circle class="dot" r="5" visibility="hidden"/>`;
+  s += `<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="transparent"/>`;
+  el.innerHTML = s + '</svg>';
+
+  const svg = el.querySelector('svg'), cross = el.querySelector('.cross'), dot = el.querySelector('.dot'), tip = $('tip');
+  svg.addEventListener('mousemove', e => {
+    const box = svg.getBoundingClientRect();
+    const vx = (e.clientX - box.left) / box.width * W;
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round((vx - ml) / pw * (pts.length - 1))));
+    const p = pts[i];
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('visibility', 'visible');
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(p.total)); dot.setAttribute('visibility', 'visible');
+    tip.innerHTML = p.idle
+      ? `<b>${p.date}</b><br><span class="sub">等待進場（開獎前已 ${p.streak} 期未開）</span><br>總累計 ${signed(p.total)}`
+      : `<b>${p.date}</b><br><span class="sub">第 ${p.round} 輪・下 ${p.units} 支${p.hit ? '・中' : ''}</span><br>
+      本輪累計 ${signed(p.roundCum)}<br>總累計 ${signed(p.total)}`;
+    tip.hidden = false;
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8) + 'px';
+    tip.style.top = (e.clientY - tip.offsetHeight - 10) + 'px';
+  });
+  svg.addEventListener('mouseleave', () => {
+    tip.hidden = true;
+    cross.setAttribute('visibility', 'hidden');
+    dot.setAttribute('visibility', 'hidden');
+  });
+}
+
+$('simRun').addEventListener('click', runSim);
+$('simBack').addEventListener('input', () => { document.querySelector('input[name=simStartMode][value=back]').checked = true; updateSimRange(); });
+$('simDate').addEventListener('input', () => { document.querySelector('input[name=simStartMode][value=date]').checked = true; updateSimRange(); });
+document.querySelectorAll('input[name=simStartMode]').forEach(r => r.addEventListener('change', updateSimRange));
+$('simDate').max = ymd(new Date());
+$('simStrategy').addEventListener('change', e => {
+  $('simFixedWrap').hidden = e.target.value !== 'fixed';
+  $('simTargetWrap').hidden = e.target.value === 'fixed';
+});
+$('simTarget').addEventListener('change', e => {
+  bet.settings.target = Math.max(0, Math.floor(Number(e.target.value) || 0));
+  saveBet();
+  renderBet();
+  if (sim.result) runSim();
+});
+$('simResult').addEventListener('change', e => {
+  if (e.target.id === 'ruleMode') {
+    const mode = e.target.value;
+    sim.rule = { mode, val: { max: 50, avg: 2, fixed: 15 }[mode] };
+  } else if (e.target.id === 'ruleVal') {
+    sim.rule.val = Math.max(0, Number(e.target.value) || 0);
+  } else return;
+  renderSim();
+});
+
+$('simResult').addEventListener('click', e => {
+  const th = e.target.closest('th[data-rk]');
+  if (th) {
+    const k = th.dataset.rk;
+    if (sim.rank.key === k) sim.rank.dir *= -1;
+    else sim.rank = { key: k, dir: k === 'totalCost' ? 1 : -1 };
+    renderSim();
+    return;
+  }
+  const tabBtn = e.target.closest('button[data-simtab]');
+  if (tabBtn) {
+    sim.tab = tabBtn.dataset.simtab;
+    renderSim();
+    return;
+  }
+  if (e.target.id === 'simToLedger') { simToLedger(); return; }
+  const tr = e.target.closest('tr[data-tail]');
+  if (!tr) return;
+  sim.sel = Number(tr.dataset.tail);
+  sim.tab = 'detail';
+  renderSim();
+  $('simResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+function simToLedger() {
+  if (bet.round && !confirm('「虛擬下注」目前有進行中的紀錄，要覆蓋嗎？（不會存檔）')) return;
+  const R = sim.result;
+  bet.round = { tail: sim.sel, startDate: startDateBack(R.n), rows: [] };
+  if (R.strategy === 'fixed') bet.round.rows = Array.from({ length: R.n + 1 }, () => ({ units: R.fixed }));
+  bet.autoSuggest = true;
+  saveBet();
+  renderBet();
+  document.querySelector('#tabs [data-view=bet]').click();
+}
+
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const view = b.dataset.view;
+  $('tabs').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  $('viewStats').hidden = view !== 'stats';
+  $('viewBet').hidden = view !== 'bet';
+  $('viewSim').hidden = view !== 'sim';
+  $('settingsCard').hidden = view === 'stats';
+});
+
+// ---- events ----
+document.addEventListener('click', e => {
+  const b = e.target.closest('.ball');
+  if (b) toggleHighlight(Number(b.dataset.n));
+  const th = e.target.closest('th.sortable');
+  if (th) {
+    const s = state.sort[th.closest('table').id];
+    if (!s) return;
+    const key = th.dataset.k;
+    if (s.key === key) s.dir *= -1;
+    else { s.key = key; s.dir = key === 'num' ? 1 : -1; }
+    renderStats();
+    renderSpecial();
+    renderTails();
+  }
+});
+
+$('ranges').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('ranges').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  state.months = Number(b.dataset.months);
+  load();
+});
+
+$('withSpecial').addEventListener('change', e => { state.withSpecial = e.target.checked; restat(); });
+
+$('find').addEventListener('input', e => {
+  const n = Number(e.target.value);
+  state.highlight = n >= 1 && n <= MAXN ? n : null;
+  renderAll();
+});
+
+$('onlyHit').addEventListener('change', e => { state.onlyHit = e.target.checked; renderDraws(); });
+$('refresh').addEventListener('click', () => load(true));
+
+// 字體大小：標準 → 大 → 特大，記在瀏覽器裡（長輩用手機時可以放大）
+const SIZES = [['m', '標準'], ['l', '大'], ['xl', '特大']];
+function applySize(s) {
+  if (!SIZES.some(x => x[0] === s)) s = 'm';
+  document.querySelector('.viz-root').dataset.size = s;
+  $('sizeBtn').textContent = '字：' + SIZES.find(x => x[0] === s)[1];
+  try { localStorage.setItem('m6:size', s); } catch {}
+}
+$('sizeBtn').addEventListener('click', () => {
+  const i = SIZES.findIndex(x => x[0] === document.querySelector('.viz-root').dataset.size);
+  applySize(SIZES[(i + 1) % SIZES.length][0]);
+});
+try { applySize(localStorage.getItem('m6:size') || 'm'); } catch { applySize('m'); }
+
+// 下注設定：手機上預設收合，只顯示一行摘要
+function setSettingsCollapsed(c) {
+  $('settingsCard').classList.toggle('collapsed', c);
+  $('setToggle').textContent = c ? '展開' : '收合';
+}
+$('setToggle').addEventListener('click', () => setSettingsCollapsed(!$('settingsCard').classList.contains('collapsed')));
+setSettingsCollapsed(window.matchMedia('(max-width: 760px)').matches);
+
+// 放到網站上（https）時註冊 Service Worker，就能「加到主畫面」當 App 用；直接開檔案時略過
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+load();
+</script>
+</body>
+</html>
