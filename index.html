@@ -137,6 +137,10 @@
   details.more > summary::after { content: "▾"; }
   details.more[open] > summary::after { content: "▴"; }
   details.more[open] > summary { margin-bottom: 14px; }
+  .entry-pick { display: grid; gap: 10px; }
+  .entry-pick h3 { margin: 0; }
+  .entry-pick label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 15px; color: var(--text-primary); }
+  .entry-pick input[type=number] { width: 90px; }
   .headline { font-size: 15px; line-height: 1.8; margin: 4px 0 12px; }
   .headline b { font-size: 17px; }
   details.help { margin-top: 12px; font-size: 12px; color: var(--text-muted); }
@@ -2023,18 +2027,17 @@ function runTailEntry(R, tail, entry) {
   return null;
 }
 
+// All three choices stay visible (with their inputs), so the date box is easy to find;
+// typing a number or picking a date switches to that choice by itself.
 function entryPicker(R) {
   const e = sim.detailEntry;
+  const radio = (v, label) => `<input type="radio" name="detEntry" value="${v}" ${e.mode === v ? 'checked' : ''}>${label}`;
   return `
-    <div class="advice" style="margin-top: 0">
-      <div class="fields" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
-        <div class="field"><span>入場時機（改了立刻重算）</span><div class="ctl"><select id="detEntryMode">
-          <option value="same" ${e.mode === 'same' ? 'selected' : ''}>照推演設定（${R.entryMiss ? `未開滿 ${R.entryMiss} 期` : '一開始就進場'}）</option>
-          <option value="miss" ${e.mode === 'miss' ? 'selected' : ''}>連續未開滿幾期才進場</option>
-          <option value="date" ${e.mode === 'date' ? 'selected' : ''}>從某個日期開始</option></select></div></div>
-        ${e.mode === 'miss' ? `<div class="field"><span>連續未開滿</span><div class="ctl"><input id="detMiss" type="number" min="0" value="${e.miss}"> 期才進場</div></div>` : ''}
-        ${e.mode === 'date' ? `<div class="field"><span>從這天那一期開始</span><div class="ctl"><input id="detDate" type="date" min="${R.from.date}" max="${R.to.date}" value="${e.date || ''}"></div></div>` : ''}
-      </div>
+    <div class="advice entry-pick" style="margin-top: 0">
+      <h3>入場時機 <span class="wd">（改了立刻重算）</span></h3>
+      <label>${radio('same', `照推演設定（${R.entryMiss ? `未開滿 ${R.entryMiss} 期才進場` : '一開始就進場'}）`)}</label>
+      <label>${radio('miss', '連續未開滿')} <input id="detMiss" type="number" min="0" value="${e.miss}"> 期才進場</label>
+      <label>${radio('date', '從日期')} <input id="detDate" type="date" min="${R.from.date}" max="${R.to.date}" value="${e.date || ''}"> 那一期開始</label>
     </div>`;
 }
 
@@ -2193,15 +2196,15 @@ $('simTarget').addEventListener('change', e => {
 $('simResult').addEventListener('input', e => {
   const id = e.target.id;
   if (id !== 'detMiss' && id !== 'detDate') return;
-  if (id === 'detMiss') sim.detailEntry.miss = Math.max(0, Math.floor(Number(e.target.value) || 0));
-  else sim.detailEntry.date = e.target.value;
+  if (id === 'detMiss') { sim.detailEntry.miss = Math.max(0, Math.floor(Number(e.target.value) || 0)); sim.detailEntry.mode = 'miss'; }
+  else { sim.detailEntry.date = e.target.value; if (e.target.value) sim.detailEntry.mode = 'date'; }
   renderSimDetail();
   const again = $(id);
   if (again) again.focus();
 });
 
 $('simResult').addEventListener('change', e => {
-  if (e.target.id === 'detEntryMode') {
+  if (e.target.name === 'detEntry') {
     sim.detailEntry.mode = e.target.value;
     renderSimDetail();
     return;
