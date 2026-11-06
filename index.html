@@ -193,7 +193,7 @@
   tr.sep td { background: var(--surface-2); color: var(--text-secondary); font-size: 12px; padding: 7px 12px; }
   tr.click { cursor: pointer; }
   td.muted { color: var(--text-muted); }
-  #draws td { white-space: nowrap; }
+  #draws td, #special td, #special th, #stats td, #stats th, #tails td, #tails th { white-space: nowrap; }
   #draws .balls { flex-wrap: nowrap; }
 
   /* 虛擬下注 */
@@ -462,7 +462,7 @@ const state = {
   withSpecial: false,
   highlight: null,
   onlyHit: true,
-  sort: { stats: { key: 'num', dir: 1 }, special: { key: 'spMiss', dir: -1 }, tails: { key: 'num', dir: 1 } },
+  sort: { stats: { key: 'num', dir: 1 }, special: { key: 'sp', dir: -1 }, tails: { key: 'num', dir: 1 } },
   byMonth: {},       // 'YYYY-MM' -> draws[] already fetched this session
   history: null,     // every draw from now back until all 49 numbers have appeared (for 未開期數)
   historyLoading: false,
@@ -695,25 +695,28 @@ function renderAll() {
 }
 
 function renderTails() {
-  $('tailsNote').textContent = historyNote();
-  const rows = sortRows('tails', current.tails).map(t => `
+  $('tailsNote').textContent = rangeNote();
+  const rows = sortRows('tails', current.tails).map(t => {
+    const inR = inRange(t.last);
+    return `
     <tr class="${state.highlight && t.nums.includes(state.highlight) ? 'hl' : ''}">
       <td><b>${t.num} 尾</b></td>
       <td><span class="balls">${t.nums.map(ball).join('')}</span></td>
-      <td><b>${t.last ? t.miss : '≥ ' + t.miss}</b></td>
-      <td>${t.last || '—'}</td>
-      <td class="muted">${t.period || '—'}</td>
-      <td>${t.hit ? ball(t.hit) : '—'}</td>
-      <td>${t.count}</td>
-    </tr>`).join('');
+      <td><b>${t.count}</b></td>
+      <td>${inR ? t.last : '<span class="wd">區間內未開出</span>'}</td>
+      <td class="muted">${inR ? t.period : '—'}</td>
+      <td>${inR ? ball(t.hit) : '—'}</td>
+      <td>${missCell(t.last, t.miss)}</td>
+    </tr>`;
+  }).join('');
   $('tails').innerHTML = `<thead><tr>
       ${sortHeader('tails', 'num', '尾數')}
       <th>號碼</th>
-      ${sortHeader('tails', 'miss', '已有幾期未開')}
+      ${sortHeader('tails', 'count', rangeLabel() + '次數')}
       <th>最後開出日期</th>
       <th>期別</th>
       <th>當時開出</th>
-      ${sortHeader('tails', 'count', rangeLabel() + '次數')}
+      ${sortHeader('tails', 'miss', '已有幾期未開')}
     </tr></thead><tbody>${rows}</tbody>`;
 }
 
@@ -721,10 +724,18 @@ function rangeLabel() {
   return { 1: '近 1 個月', 3: '近 3 個月', 6: '近半年', 12: '近 1 年', 24: '近 2 年' }[state.months];
 }
 
-function historyNote() {
-  const h = state.history;
-  if (h && h.length) return `「未開期數」從最新一期往回算（已查到 ${h[h.length - 1].date}，共 ${h.length} 期）`;
-  return state.historyLoading ? '正在往前查完整歷史，未開期數稍後會更新…' : '未開期數僅以目前區間計算（≥ 表示至少）';
+// The statistics tables follow the range picked above. A number that didn't come up inside the
+// range shows that, plus how many draws it has really been missing as of today.
+const inRange = date => !!date && date >= current.startStr;
+
+function missCell(last, miss) {
+  if (inRange(last)) return `<b>${miss}</b>`;
+  if (!state.history) return `<span class="wd">區間內未開<br>${state.historyLoading ? '實際期數計算中…' : `超過 ${miss} 期`}</span>`;
+  return `<span class="wd">區間內未開<br>到今天實際已 ${miss}${last ? '' : '+'} 期</span>`;
+}
+
+function rangeNote() {
+  return `依上方區間統計：${current.startStr} ～ ${ymd(new Date())}，共 ${current.draws.length} 期。區間內沒開出的，另外標示到今天實際已幾期未開。`;
 }
 
 const sortHeader = (table, key, label) => {
@@ -739,21 +750,24 @@ const sortRows = (table, stats) => {
 
 function renderSpecial() {
   const { stats } = current;
-  $('specialNote').textContent = historyNote();
-  const rows = sortRows('special', stats).map(s => `
+  $('specialNote').textContent = rangeNote();
+  const rows = sortRows('special', stats).map(s => {
+    const inR = inRange(s.spLast);
+    return `
     <tr class="${s.num === state.highlight ? 'hl' : ''}">
       <td>${ball(s.num)}</td>
-      <td><b>${s.spLast ? s.spMiss : '≥ ' + s.spMiss}</b></td>
-      <td>${s.spLast || '—'}</td>
-      <td class="muted">${s.spPeriod || '—'}</td>
-      <td>${s.sp}</td>
-    </tr>`).join('');
+      <td><b>${s.sp}</b></td>
+      <td>${inR ? s.spLast : '<span class="wd">區間內未開出</span>'}</td>
+      <td class="muted">${inR ? s.spPeriod : '—'}</td>
+      <td>${missCell(s.spLast, s.spMiss)}</td>
+    </tr>`;
+  }).join('');
   $('special').innerHTML = `<thead><tr>
       ${sortHeader('special', 'num', '號碼')}
-      ${sortHeader('special', 'spMiss', '已有幾期未開')}
+      ${sortHeader('special', 'sp', rangeLabel() + '次數')}
       <th>最後開出日期</th>
       <th>期別</th>
-      ${sortHeader('special', 'sp', rangeLabel() + '次數')}
+      ${sortHeader('special', 'spMiss', '已有幾期未開')}
     </tr></thead><tbody>${rows}</tbody>`;
 }
 
@@ -877,19 +891,19 @@ function renderDraws() {
 
 function renderStats() {
   const { stats } = current;
-  $('statsNote').textContent = historyNote() + (state.withSpecial ? '，含特別號' : '');
+  $('statsNote').textContent = rangeNote() + (state.withSpecial ? '（含特別號）' : '');
   const rows = sortRows('stats', stats).map(s => `
     <tr class="${s.num === state.highlight ? 'hl' : ''}">
       <td>${ball(s.num)}</td>
-      <td>${s.main}</td>
-      <td>${s.last ? s.miss : '≥ ' + s.miss}</td>
-      <td class="muted">${s.last || '—'}</td>
+      <td><b>${s.main}</b></td>
+      <td>${inRange(s.last) ? s.last : '<span class="wd">區間內未開出</span>'}</td>
+      <td>${missCell(s.last, s.miss)}</td>
     </tr>`).join('');
   $('stats').innerHTML = `<thead><tr>
       ${sortHeader('stats', 'num', '號碼')}
       ${sortHeader('stats', 'main', rangeLabel() + '次數')}
-      ${sortHeader('stats', 'miss', '未開期數')}
-      <th>上次開出</th>
+      <th>最後開出日期</th>
+      ${sortHeader('stats', 'miss', '已有幾期未開')}
     </tr></thead><tbody>${rows}</tbody>`;
 }
 
