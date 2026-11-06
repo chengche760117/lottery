@@ -223,6 +223,13 @@
   .hotcold .grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .hotcold .chip { display: inline-flex; align-items: center; gap: 4px; color: var(--text-primary); }
   .wave-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 2px; }
+  /* phone version of the frequency chart: two columns of horizontal bars */
+  .hbars { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .hbar { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+  .hbar .track { flex: 1; height: 14px; background: var(--grid); border-radius: 7px; overflow: hidden; }
+  .hbar .fill { height: 100%; background: var(--series-1); border-radius: 7px; }
+  .hbar.hl .fill { background: var(--accent); }
+  .hbar b { min-width: 18px; text-align: right; font-variant-numeric: tabular-nums; }
 
   .tip { position: fixed; pointer-events: none; z-index: 30; background: var(--surface-1); color: var(--text-primary);
          border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.5;
@@ -295,15 +302,33 @@
     .form-row { font-size: 15px; }
     .actions { gap: 10px; }
 
-    /* 49 根長條和走勢圖在手機上可以左右滑動 */
-    .chart { overflow-x: auto; }
-    .chart svg { min-width: 760px; }
-    .eq-chart { overflow-x: auto; }
-    .eq-chart svg { min-width: 640px; }
     .hotcold { font-size: 14px; }
 
-    .subtabs { margin: 0 -12px 14px; padding: 0 4px; }
-    .subtabs button { font-size: 15px; padding: 12px; }
+    /* 子分頁：兩排按鈕全部看得到，不用左右滑 */
+    .subtabs { margin: 0 0 14px; padding: 0; border-bottom: 0; flex-wrap: wrap; gap: 6px; overflow: visible; }
+    .subtabs button { flex: 1 1 30%; font-size: 15px; padding: 10px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+    .subtabs button.active { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+
+    /* 表格變卡片：每一列一張卡、每個欄位一行（左：欄位名稱，右：數值），完全不用左右滑 */
+    .table-scroll { border: 0; border-radius: 0; max-height: none !important; overflow: visible !important; }
+    table.rt, table.rt > tbody, table.rt > tbody > tr, table.rt > tbody > tr > td { display: block; width: 100%; }
+    table.rt > thead { display: none; }
+    table.rt > tbody > tr { margin: 0 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-1); overflow: hidden; }
+    /* label floats left, the cell's own content stays together and right-aligned (line breaks kept) */
+    table.rt > tbody > tr > td {
+      padding: 9px 12px; text-align: right; white-space: normal !important; border-bottom: 1px solid var(--grid); line-height: 1.6; }
+    table.rt > tbody > tr > td::after { content: ""; display: block; clear: both; }
+    table.rt > tbody > tr > td::before { content: attr(data-label); float: left; max-width: 46%; margin-right: 12px; text-align: left; color: var(--text-muted); font-size: 14px; }
+    table.rt > tbody > tr > td:first-child { background: var(--surface-2); font-weight: 600; }
+    table.rt > tbody > tr > td:last-child { border-bottom: 0; }
+    table.rt > tbody > tr > td[data-label=""]::before, table.rt > tbody > tr > td.full::before { content: none; }
+    table.rt > tbody > tr > td.full { text-align: left; }
+    table.rt > tbody > tr > td .balls { justify-content: flex-end; }
+    table.rt > tbody > tr > td .unit-in { vertical-align: middle; }
+    table.rt > tbody > tr:hover > td { background: inherit; }
+    table.rt > tbody > tr > td:first-child { background: var(--surface-2); }
+    table.rt > tbody > tr.hl > td, table.rt > tbody > tr.pending > td { background: var(--row-hl); }
+    table.rt > tbody > tr.sep { border-style: dashed; }
     .note, details.help, .wd { font-size: 13px; }
     .advice { padding: 12px; font-size: 15px; }
     .unit-in { width: 76px; font-size: 18px; padding: 8px 6px; }
@@ -797,9 +822,26 @@ function niceStep(max) {
   return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mag;
 }
 
+const isPhone = () => window.matchMedia('(max-width: 760px)').matches;
+
+// On a phone 49 vertical bars are too thin to read, so show a two-column list of horizontal bars.
+function renderChartList() {
+  const { draws, stats } = current;
+  const max = Math.max(1, ...stats.map(s => s.count));
+  const avg = draws.length * (state.withSpecial ? 7 : 6) / MAXN;
+  $('chart').innerHTML = `
+    <div class="hbars">${stats.map(s => `
+      <div class="hbar${s.num === state.highlight ? ' hl' : ''}">${ball(s.num)}
+        <div class="track"><div class="fill" style="width: ${(s.count / max * 100).toFixed(1)}%"></div></div>
+        <b>${s.count}</b></div>`).join('')}
+    </div>
+    <div class="note" style="margin: 10px 0 0">平均每個號碼 ${avg.toFixed(1)} 次。點號碼可以查這個號碼的開獎紀錄。</div>`;
+}
+
 function renderChart() {
   const { draws, stats } = current;
   $('chartTitle').textContent = state.withSpecial ? '各號碼出現次數（正碼＋特別號）' : '各號碼出現次數（正碼）';
+  if (isPhone()) { renderChartList(); return; }
   const W = 980, H = 270, ml = 34, mr = 8, mt = 28, mb = 26;
   const pw = W - ml - mr, ph = H - mt - mb;
   const maxCount = Math.max(1, ...stats.map(s => s.count));
@@ -1910,7 +1952,8 @@ function renderSimDetail() {
 
 function drawEquity(el, pts) {
   if (!pts.length) { el.innerHTML = ''; return; }
-  const W = 980, H = 260, ml = 74, mr = 12, mt = 14, mb = 26;
+  // Draw at the container's real width so labels stay readable on a phone instead of shrinking.
+  const W = Math.max(340, Math.min(980, el.clientWidth || 980)), H = 260, ml = 74, mr = 12, mt = 14, mb = 26;
   const pw = W - ml - mr, ph = H - mt - mb;
   let lo = Math.min(0, ...pts.map(p => p.total)), hi = Math.max(0, ...pts.map(p => p.total));
   if (hi === lo) hi = lo + 1;
@@ -2060,6 +2103,59 @@ $('find').addEventListener('input', e => {
 
 $('onlyHit').addEventListener('change', e => { state.onlyHit = e.target.checked; renderDraws(); });
 $('refresh').addEventListener('click', () => load(true));
+
+// 手機上把表格變成卡片：每格帶上欄位名稱（data-label），CSS 在窄螢幕時一列排成一張卡片，
+// 長輩就不用左右滑。表格內容會一直重畫，所以用 MutationObserver 隨時補上欄位名稱。
+function headerLabels(table) {
+  const rows = [...table.querySelectorAll(':scope > thead > tr')];
+  if (!rows.length) return null;
+  const grid = [];
+  rows.forEach((tr, r) => {
+    grid[r] = grid[r] || [];
+    let c = 0;
+    for (const th of tr.children) {
+      while (grid[r][c] !== undefined) c++;
+      const text = th.textContent.replace(/[▲▼]/g, '').replace(/\s+/g, ' ').trim();
+      for (let i = 0; i < (th.rowSpan || 1); i++) {
+        for (let j = 0; j < (th.colSpan || 1); j++) (grid[r + i] = grid[r + i] || [])[c + j] = text;
+      }
+      c += th.colSpan || 1;
+    }
+  });
+  const cols = Math.max(...grid.map(g => g.length));
+  return Array.from({ length: cols }, (_, c) => {
+    const parts = [];
+    grid.forEach(g => { if (g[c] && parts[parts.length - 1] !== g[c]) parts.push(g[c]); });
+    return parts.join('・');
+  });
+}
+
+function labelTables() {
+  document.querySelectorAll('main table').forEach(table => {
+    const labels = headerLabels(table);
+    if (!labels) return;
+    table.classList.add('rt');
+    table.querySelectorAll(':scope > tbody > tr').forEach(tr => {
+      let c = 0;
+      for (const td of tr.children) {
+        const span = td.colSpan || 1;
+        if (span > 1) td.classList.add('full');
+        else if (td.dataset.label !== labels[c]) td.dataset.label = labels[c] || '';
+        c += span;
+      }
+    });
+  });
+}
+
+let labelQueued = false;
+new MutationObserver(() => {
+  if (labelQueued) return;
+  labelQueued = true;
+  requestAnimationFrame(() => { labelQueued = false; labelTables(); });
+}).observe(document.querySelector('main'), { childList: true, subtree: true });
+
+// Switching between phone and desktop width (e.g. rotating a tablet) redraws the chart in the right form.
+window.matchMedia('(max-width: 760px)').addEventListener('change', () => { if (current.tails.length) renderAll(); });
 
 // 字體大小：標準 → 大 → 特大，記在瀏覽器裡（長輩用手機時可以放大）
 const SIZES = [['m', '標準'], ['l', '大'], ['xl', '特大']];
