@@ -1501,7 +1501,7 @@ $('viewBet').addEventListener('click', async e => {
 });
 
 // ---------- 模擬推演 ----------
-const sim = { result: null, sel: null, tab: 'overview', rank: { key: 'roi', dir: -1 }, rule: { mode: 'max', val: 75 } };
+const sim = { result: null, sel: null, tab: 'overview', detailEntry: { mode: 'same', miss: 19, date: '' }, rank: { key: 'roi', dir: -1 }, rule: { mode: 'max', val: 75 } };
 const pct = v => v === null ? '—' : (v * 100).toFixed(1) + '%';
 const signedPct = v => `<span class="money ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%</span>`;
 
@@ -2012,20 +2012,52 @@ function renderOverview(R) {
     ${help('「最大資金回撤」= 總累計輸贏從最高點往下掉最多的金額，也就是過程中最多需要準備的錢。「目前這輪」是推演結束時還沒中、仍在追的那一輪。其他分頁：遺漏分析（每組多久沒開）、進場時機（等幾期再進場）、投資與獲利（排名）、每輪成本（每次中獎前投入多少）。')}`;
 }
 
+// 尾數明細裡自己選的入場時機（只影響這一頁）
+function runTailEntry(R, tail, entry) {
+  if (entry.mode === 'miss') return runTailWith(R, tail, Math.max(0, entry.miss || 0));
+  if (entry.mode === 'date' && entry.date) {
+    let idx = R.draws.findIndex(d => d.date >= entry.date);
+    if (idx < 0) idx = R.draws.length;
+    return runTailWith({ ...R, draws: R.draws.slice(idx), prior: R.prior.concat(R.draws.slice(0, idx)) }, tail, 0);
+  }
+  return null;
+}
+
+function entryPicker(R) {
+  const e = sim.detailEntry;
+  return `
+    <div class="advice" style="margin-top: 0">
+      <div class="fields" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr))">
+        <div class="field"><span>入場時機（改了立刻重算）</span><div class="ctl"><select id="detEntryMode">
+          <option value="same" ${e.mode === 'same' ? 'selected' : ''}>照推演設定（${R.entryMiss ? `未開滿 ${R.entryMiss} 期` : '一開始就進場'}）</option>
+          <option value="miss" ${e.mode === 'miss' ? 'selected' : ''}>連續未開滿幾期才進場</option>
+          <option value="date" ${e.mode === 'date' ? 'selected' : ''}>從某個日期開始</option></select></div></div>
+        ${e.mode === 'miss' ? `<div class="field"><span>連續未開滿</span><div class="ctl"><input id="detMiss" type="number" min="0" value="${e.miss}"> 期才進場</div></div>` : ''}
+        ${e.mode === 'date' ? `<div class="field"><span>從這天那一期開始</span><div class="ctl"><input id="detDate" type="date" min="${R.from.date}" max="${R.to.date}" value="${e.date || ''}"></div></div>` : ''}
+      </div>
+    </div>`;
+}
+
 function renderSimDetail() {
   const R = sim.result;
-  const t = R && sim.sel !== null ? R.tails.find(x => x.tail === sim.sel) : null;
+  let t = R && sim.sel !== null ? R.tails.find(x => x.tail === sim.sel) : null;
   const pane = $('simDetailPane');
   if (!pane) return;
   if (!t) { pane.innerHTML = '<div class="empty">請在「總覽」或其他分頁的表格點選一個尾數，這裡會顯示它的明細、接下來的推演與輸贏走勢。</div>'; return; }
+  const baseTotal = t.S.total;
+  const custom = runTailEntry(R, t.tail, sim.detailEntry);
+  if (custom) t = Object.assign({ tail: t.tail, drought: t.drought }, custom);
   const pts = t.settled.map(x => ({ date: x.draw.date, total: x.total, round: x.round, roundCum: x.roundCum, units: x.units, hit: !!x.back, idle: !!x.idle, streak: x.streak }));
   // If the simulation ends mid-round (e.g. you entered on a chosen date and the tail hasn't come
   // back yet), continue that round: its drawn rows first, then the projection from where it stands.
   const open = t.rounds.find(r => r.result === 'open');
   const openRows = open ? t.settled.filter(x => !x.idle && x.round === open.no) : [];
   const cum0 = open ? open.net : 0, played0 = open ? open.n : 0;
+  // Waiting for "連續未開滿 N 期": the fresh round only starts after that many more misses.
+  const entryMiss = sim.detailEntry.mode === 'miss' ? sim.detailEntry.miss : sim.detailEntry.mode === 'same' ? R.entryMiss : 0;
+  const wait = open ? 0 : Math.max(0, (entryMiss || 0) - t.S.endStreak);
   const plan = entryPlan(t.k, 30, cum0, played0);
-  const planDates = upcomingDates(plan.steps.length);
+  const planDates = upcomingDates(wait + plan.steps.length).slice(wait);
   let paid = 0;
   const pastRows = openRows.map(x => {
     paid += x.cost;
@@ -2048,7 +2080,9 @@ function renderSimDetail() {
         ? `本輪從 ${open.start} 進場，已追 ${open.n} 期，本輪目前 ${signed(open.net)}`
         : `目前已連續 ${t.S.endStreak} 期沒開`}</h3>
       ${first ? `
-      <div class="headline">下一期（預估 ${dateCell(planDates[0])}）建議下 <b>${first.units} 支</b>（花 ${money(first.cost)}），中了本輪 ${signed(first.win)}</div>
+      <div class="headline">${wait
+        ? `還要再等 <b>${wait} 期</b>沒開才進場（預估 ${dateCell(planDates[0])} 起）；進場第一期建議下 <b>${first.units} 支</b>（花 ${money(first.cost)}），中了本輪 ${signed(first.win)}`
+        : `下一期（預估 ${dateCell(planDates[0])}）建議下 <b>${first.units} 支</b>（花 ${money(first.cost)}），中了本輪 ${signed(first.win)}`}</div>
       <div>接下來最多再追 ${plan.steps.length} 期，這段期間內開出的機率 <b>${pct(1 - plan.pFail)}</b>；如果一直沒開，本輪會累計到 ${signed(plan.finalCum)}。</div>`
       : `<div><span class="warn">已達停損條件，不再往下追。</span></div>`}
       ${more('看詳細：逐期推演表與機率', `
@@ -2065,8 +2099,9 @@ function renderSimDetail() {
       <td class="money">${money(x.maxCost)}</td><td>${signed(x.minCum)}</td><td>${signed(x.net)}</td></tr>`).join('');
   pane.innerHTML = `
     <h2>${t.tail} 尾明細（${tailNums(t.tail).map(pad).join(' ')}）</h2>
-    <div class="kpis">
-      <div>總輸贏<b>${signed(t.S.total)}</b></div>
+    ${entryPicker(R)}
+    <div class="kpis" style="margin-top: 16px">
+      <div>總輸贏${custom ? '（你選的入場）' : ''}<b>${signed(t.S.total)}</b>${custom ? `<span class="wd">照推演設定：${signed(baseTotal)}</span>` : ''}</div>
       <div>${bet.settings.target ? '達標' : '回本'} / 停損<b>${t.S.wins} 輪 / ${t.S.stops} 輪</b></div>
       <div>單期最多下注<b class="money">${money(t.S.maxCost)}</b></div>
     </div>
@@ -2087,7 +2122,10 @@ function renderSimDetail() {
 }
 
 function drawEquity(el, pts) {
-  if (!pts.length) { el.innerHTML = ''; return; }
+  if (!pts.length || pts.every(p => p.total === 0 && !p.units)) {
+    el.innerHTML = '<div class="empty" style="padding: 20px 12px">這段期間沒有進場下注，所以沒有輸贏走勢。</div>';
+    return;
+  }
   // Draw at the container's real width so labels stay readable on a phone instead of shrinking.
   const W = Math.max(340, Math.min(980, el.clientWidth || 980)), H = 260, ml = 74, mr = 12, mt = 14, mb = 26;
   const pw = W - ml - mr, ph = H - mt - mb;
@@ -2151,7 +2189,23 @@ $('simTarget').addEventListener('change', e => {
   renderBet();
   if (sim.result) runSim();
 });
+// 尾數明細的入場時機：打字或選日期就立刻重算這一頁
+$('simResult').addEventListener('input', e => {
+  const id = e.target.id;
+  if (id !== 'detMiss' && id !== 'detDate') return;
+  if (id === 'detMiss') sim.detailEntry.miss = Math.max(0, Math.floor(Number(e.target.value) || 0));
+  else sim.detailEntry.date = e.target.value;
+  renderSimDetail();
+  const again = $(id);
+  if (again) again.focus();
+});
+
 $('simResult').addEventListener('change', e => {
+  if (e.target.id === 'detEntryMode') {
+    sim.detailEntry.mode = e.target.value;
+    renderSimDetail();
+    return;
+  }
   if (e.target.id === 'ruleMode') {
     const mode = e.target.value;
     sim.rule = { mode, val: { max: 75, avg: 2, fixed: 15 }[mode] };
